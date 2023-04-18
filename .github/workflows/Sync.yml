@@ -11,9 +11,6 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
-      with:
-        ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-        fetch-depth: 0
     - name: Init Building Dependencies
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -27,8 +24,14 @@ jobs:
         svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
     - name: Sync package folder to upstream repo
       env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        TARGET_REPO: ThingsWhy/own_packages
       run: |
+        echo "$SSH_PRIVATE_KEY" > ssh_private_key
+        chmod 600 ssh_private_key
+        mkdir -p ~/.ssh
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
         cd /home/runner
         git clone git@github.com:ThingsWhy/own_packages.git
         cd /home/runner/own_packages
@@ -38,3 +41,4 @@ jobs:
         git config --global user.name "GitHub Actions"
         git commit -m "Sync package folder from Actions"
         git push origin branch
+        rm -f ssh_private_key
