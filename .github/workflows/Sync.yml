@@ -40,3 +40,4 @@ jobs:
        git add .
        git commit -m "Sync package folder from Actions"
        git push origin main
+       rm -f /home/runner/.ssh/id_rsa
