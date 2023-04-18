@@ -18,7 +18,7 @@ jobs:
       run: |
         sudo -E apt update && sudo -E apt upgrade -y
         sudo -E apt install -y subversion rsync
-    - name: Clone Source
+    - name: Get Source
       run: |
         cd "/home/runner"
         mkdir package && cd package
