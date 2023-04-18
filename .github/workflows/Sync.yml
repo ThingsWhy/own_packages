@@ -1,0 +1,45 @@
+name: Sync
+
+on:
+  # repository_dispatch:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1"
+
+jobs:
+  Get_repo:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+    - name: Init Building Dependencies
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E swapoff -a
+        sudo -E rm -f /swapfile
+        sudo -E docker image prune -a -f
+        sudo -E snap set system refresh.retain=2
+        sudo -E apt -y purge azure-cli dotnet* firefox ghc* google* llvm* mono* mysql* openjdk* php* zulu* powershell* msodbc* android*
+        sudo -E apt -y autoremove --purge
+        sudo -E apt clean
+        sudo -E rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /etc/mysql /etc/php
+        sudo -E apt install -y subversion rsync
+    - name: Clone Source
+      run: |
+        cd "/home/runner"
+        mkdir package && cd package
+        svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
+    - name: Sync package folder to upstream repo
+      env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions"
+        cd /home/runner
+        git clone https://github.com/ThingsWhy/own_packages.git tmp
+        cd tmp
+        rsync -avz --delete /home/runner/package/* ./
+        git add .
+        git commit -m "Sync package folder from Actions"
+        git push
