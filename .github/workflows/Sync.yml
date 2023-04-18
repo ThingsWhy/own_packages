@@ -34,11 +34,9 @@ jobs:
        ssh-keyscan github.com >> ~/.ssh/known_hosts
        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
        chmod 600 ~/.ssh/id_rsa
-       cd $ANOTHER_PACKAGE
+       cd $TARGET_REPO
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
-       git pull
-       cd $TARGET_REPO
        rsync -a --delete /home/runner/package/* .
        git add .
        git commit -m "Sync package folder from Actions"
