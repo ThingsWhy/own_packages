@@ -26,6 +26,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        TARGET_REPO: ThingsWhy/own_packages
       run: |
         echo "$SSH_PRIVATE_KEY" > ssh_private_key
         chmod 600 ssh_private_key
