@@ -16,7 +16,7 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt update -y && apt upgrade -y
+        sudo -E apt update && sudo -E apt upgrade -y
         sudo -E apt install -y subversion rsync
     - name: Clone Source
       run: |
