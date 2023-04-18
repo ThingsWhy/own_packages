@@ -25,7 +25,7 @@ jobs:
         svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
     - name: Sync package folder to upstream repo
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
       run: |
         git config --global user.email "actions@github.com"
         git config --global user.name "GitHub Actions"
