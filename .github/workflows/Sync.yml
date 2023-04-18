@@ -25,9 +25,10 @@ jobs:
         svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
     - name: Sync package folder to upstream repo
       env:
+        MY_EMAIL: ${{ secrets.my_email }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git config --global user.email "1179447685@qq.com"
+        git config --global user.email $MY_EMAIL
         git config --global user.name "GitHub Actions"
         cd /home/runner
         git clone https://github.com/ThingsWhy/own_packages.git
