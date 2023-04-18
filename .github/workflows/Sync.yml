@@ -22,7 +22,7 @@ jobs:
         cd "/home/runner"
         mkdir package && cd package
         svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist && rm -rf luci-app-alist/.svn
-        git clone https://github.com/kenzok78/luci-app-adguardhome.git && rm -rf .git root/etc/AdGuardHome.yaml
+        git clone https://github.com/kenzok78/luci-app-adguardhome.git && rm -rf .git luci-app-adguardhome/root/etc/AdGuardHome.yaml
     - name: Sync package folder to upstream repo
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
