@@ -3,7 +3,7 @@ name: Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 2 * * 1"
+    - cron: "0 2 * * *"
 
 jobs:
   Get_repo:
@@ -21,7 +21,7 @@ jobs:
       run: |
         cd "/home/runner"
         mkdir package && cd package
-        svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
+        svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist && rm -rf luci-app-alist .svn
     - name: Sync package folder to upstream repo
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
