@@ -11,10 +11,6 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
-      with:
-        repository: ThingsWhy/own_packages
-        ref: main
-        path: /home/runner/work/ThingsWhy/own_packages
     - name: Init Building Dependencies
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -30,7 +26,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        TARGET_REPO: /home/runner/work/ThingsWhy/own_packages
         ANOTHER_PACKAGE: /home/runner/package
       run: |
        mkdir -p /home/runner/.ssh
@@ -38,7 +33,7 @@ jobs:
        ssh-keyscan github.com >> ~/.ssh/known_hosts
        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
        chmod 600 ~/.ssh/id_rsa
-       cd $TARGET_REPO
+       cd ${GITHUB_WORKSPACE}
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -a --delete /home/runner/package/* .
