@@ -30,7 +30,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       run: |
         cd /home/runner
-        git clone https://github.com/ThingsWhy/own_packages.git
+        git clone git@github.com:ThingsWhy/own_packages.git
         cd /home/runner/own_packages
         rsync -a --delete --exclude=".*" /home/runner/package/* ./
         git add .
