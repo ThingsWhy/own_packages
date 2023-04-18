@@ -11,6 +11,10 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        repository: ThingsWhy/own_packages
+        ref: main
+        path: /home/runner/own_packages
     - name: Init Building Dependencies
       env:
         DEBIAN_FRONTEND: noninteractive
