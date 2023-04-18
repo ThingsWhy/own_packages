@@ -11,6 +11,10 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        repository: ThingsWhy/own_packages
+        ref: main
+        path: /home/runner/work/ThingsWhy/own_packages
     - name: Init Building Dependencies
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -26,7 +30,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        TARGET_REPO: /home/runner/work/ThingsWhy/own_packages/own_packages
+        TARGET_REPO: /home/runner/work/ThingsWhy/own_packages
         ANOTHER_PACKAGE: /home/runner/package
       run: |
        mkdir -p /home/runner/.ssh
