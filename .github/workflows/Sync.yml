@@ -26,11 +26,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        TARGET_REPO: ThingsWhy/own_packages
+        TARGET_REPO: /home/runner/own_packages
+        ANOTHER_PACKAGE: /home/runner/package
       run: |
-        echo "$SSH_PRIVATE_KEY" > ssh_private_key
-        chmod 600 ssh_private_key
-        mkdir -p ~/.ssh
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-        rsync -a --delete /home/runner/package/* /home/runner/own_packages
-        rm -f ssh_private_key
+       ssh-keyscan github.com >> ~/.ssh/known_hosts
+       echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+       chmod 600 ~/.ssh/id_rsa
+       cd $ANOTHER_PACKAGE
+       git config user.email "actions@github.com"
+       git config user.name "GitHub Actions"
+       git pull
+       cd $TARGET_REPO
+       rsync -a --delete /home/runner/package/* .
+       git add .
+       git commit -m "Sync package folder from Actions"
+       git push origin main
