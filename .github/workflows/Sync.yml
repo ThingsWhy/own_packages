@@ -38,7 +38,6 @@ jobs:
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -a --delete /home/runner/package/* .
-       rm -rf luci-app-adguardhome
        git add .
        git commit -m "Sync package folder from Actions"
        git push origin main
