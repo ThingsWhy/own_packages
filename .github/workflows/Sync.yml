@@ -41,12 +41,12 @@ jobs:
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -ai --delete --exclude=".github" --exclude="README.md" /home/runner/package/ . > $LOG
-       if ! grep -q '.*deleted.*' $LOG && ! grep -q '.*sent.*received.*' $LOG; then
-         exit 0
-       else
+       if [ -s "$LOG" ]; then
          git add .
          git commit -m "Sync package folder from Actions"
          git push origin main
+       else
+         exit 0
        fi
     - name: CLean
       run: |
