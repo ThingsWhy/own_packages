@@ -40,7 +40,7 @@ jobs:
        cd ${GITHUB_WORKSPACE}
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
-       rsync -a --delete /home/runner/package/ . > $LOG
+       rsync -ai --delete /home/runner/package/ . > $LOG
        if ! grep -q '.*deleted.*' $LOG && ! grep -q '.*sent.*received.*' $LOG; then
          exit 0
        else
