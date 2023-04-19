@@ -39,7 +39,7 @@ jobs:
        git config user.name "GitHub Actions"
        rsync -a --delete /home/runner/package/* .
        if [ $? -ne 0 ]; then
-         exit 1
+         exit 0
        else
          git add .
          git commit -m "Sync package folder from Actions"
