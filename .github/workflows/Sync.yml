@@ -22,7 +22,9 @@ jobs:
         cd "/home/runner"
         mkdir package && cd package
         svn checkout https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist && rm -rf luci-app-alist/.svn
-        git clone https://github.com/kenzok78/luci-app-adguardhome.git && rm -rf luci-app-adguardhome/{.git,root/etc/AdGuardHome.yaml}
+        git clone --depth 1 https://github.com/kenzok78/luci-app-adguardhome.git && rm -rf luci-app-adguardhome/{.git,root/etc/AdGuardHome.yaml}
+        git clone --depth 1 https://github.com/linkease/nas-packages && mv -n nas-packages/network/services/ddnsto ./; rm -rf nas-packages
+        git clone --depth 1 https://github.com/linkease/nas-packages-luci && mv -n nas-packages-luci/luci/luci-app-ddnsto ./; rm -rf nas-packages-luci
     - name: Sync package folder to upstream repo
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
