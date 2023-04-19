@@ -37,8 +37,8 @@ jobs:
        cd ${GITHUB_WORKSPACE}
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
-       rsync -a --delete /home/runner/package/* .
-       if [ $? -ne 0 ]; then
+       rsync -a --delete /home/runner/package/* . > /home/runner/rsync.log
+       if ! grep -q '.*deleted.*' /home/runner/rsync.log && ! grep -q '.*sent.*received.*' /home/runner/rsync.log; then
          exit 0
        else
          git add .
@@ -46,6 +46,12 @@ jobs:
          git push origin main
        fi
     - name: CLean
-      if: always()
       run: |
        rm -f /home/runner/.ssh/id_rsa
+    - name: Delete old workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ github.token }}
+        repository: ${{ github.repository }}
+        retain_days: 3
+        keep_minimum_runs: 2
