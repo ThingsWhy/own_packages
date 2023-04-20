@@ -31,7 +31,6 @@ jobs:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         LOG: /home/runner/rsync.log
       run: |
-       touch $LOG
        mkdir -p /home/runner/.ssh
        touch /home/runner/.ssh/known_hosts
        ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -41,7 +40,7 @@ jobs:
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        echo "rsync"
-       rsync -icrz --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . 2>&1 | grep -E '^(>|[*])' > $LOG
+       rsync -icrz --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . 2>&1 | grep -E '^(>|[*])' > /home/runner/rsync.log
        echo "log"
        cat $LOG
        if [ -s "$LOG" ]; then
@@ -49,7 +48,7 @@ jobs:
          git commit -m "Sync package folder from Actions"
          git push origin main
        else
-         echo "No changes"
+         echo "No Changes"
        fi
     - name: CLean
       run: |
