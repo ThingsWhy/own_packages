@@ -41,11 +41,9 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        rsync -ir --checksum --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ > $LOG
-        echo "1"
-        grep -E '^(>|[*])' $LOG > /home/runner/rsync-filtered.log
+        rsync -ir --checksum --delete --exclude=".git*" --exclude="README.md" "$PACKAGE" ./ | grep -E '^(>|[*])' > $LOG
         echo "2"
-        if [ -s "rsync-filtered.log" ]; then
+        if [ -s "$LOG" ]; then
           git add .
           git commit -m "Sync package folder from Actions"
           git push origin main
