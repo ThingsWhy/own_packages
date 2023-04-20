@@ -43,6 +43,7 @@ jobs:
         git config user.name "GitHub Actions"
         touch $LOG
         cat $LOG
+        pwd
         rsync -icrz --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ | grep -E '^(>|[*])' > $LOG
         if [ -s "$LOG" ]; then
           git add .
