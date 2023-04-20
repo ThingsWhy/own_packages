@@ -45,7 +45,7 @@ jobs:
         cat $LOG
         pwd
         ls -al
-        rsync -icrz --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ > $LOG
+        rsync -icr --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ > $LOG
         echo "1"
         grep -E '^(>|[*])' $LOG > /home/runner/rsync-filtered.log
         echo "2"
