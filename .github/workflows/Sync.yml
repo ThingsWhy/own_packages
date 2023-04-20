@@ -29,30 +29,32 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        PACKAGE: /home/runner/package/
         LOG: /home/runner/rsync.log
       run: |
-       mkdir -p /home/runner/.ssh
-       touch /home/runner/.ssh/known_hosts
-       ssh-keyscan github.com >> ~/.ssh/known_hosts
-       echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-       chmod 600 ~/.ssh/id_rsa
-       cd ${GITHUB_WORKSPACE}
-       git config user.email "actions@github.com"
-       git config user.name "GitHub Actions"
-       echo "rsync"
-       rsync -icrz --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . | grep -E '^(>|[*])' > $LOG
-       echo "log"
-       cat $LOG
-       if [ -s "$LOG" ]; then
-         git add .
-         git commit -m "Sync package folder from Actions"
-         git push origin main
-       else
-         echo "No Changes"
-       fi
+        set -x
+        mkdir -p /home/runner/.ssh
+        touch /home/runner/.ssh/known_hosts
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        cd ${GITHUB_WORKSPACE}
+        git config user.email "actions@github.com"
+        git config user.name "GitHub Actions"
+        echo "rsync"
+        rsync -icrz --delete --exclude=".git*" --exclude="README.md" $PAKCAGE . | grep -E '^(>|[*])' > $LOG
+        echo "log"
+        cat $LOG
+        if [ -s "$LOG" ]; then
+          git add .
+          git commit -m "Sync package folder from Actions"
+          git push origin main
+        else
+          echo "No Changes"
+        fi
     - name: CLean
       run: |
-       rm -f /home/runner/.ssh/id_rsa
+        rm -f /home/runner/.ssh/id_rsa
     - name: Delete old workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
