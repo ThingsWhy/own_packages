@@ -44,8 +44,9 @@ jobs:
         touch $LOG
         cat $LOG
         pwd
-        rsync -icrz --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ | grep -E '^(>|[*])' > ../log
-        if [ -s "../log" ]; then
+        ls -al
+        rsync -icrz --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ | grep -E '^(>|[*])' > $LOG
+        if [ -s "$LOG" ]; then
           git add .
           git commit -m "Sync package folder from Actions"
           git push origin main
