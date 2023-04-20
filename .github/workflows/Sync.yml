@@ -41,11 +41,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        touch $LOG
-        cat $LOG
-        pwd
-        ls -al
-        rsync -icr --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ > $LOG
+        rsync -iar --delete --exclude=".git*" --exclude="README.md" $PACKAGE ./ > $LOG
         echo "1"
         grep -E '^(>|[*])' $LOG > /home/runner/rsync-filtered.log
         echo "2"
