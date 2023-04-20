@@ -45,6 +45,8 @@ jobs:
          git add .
          git commit -m "Sync package folder from Actions"
          git push origin main
+       else
+         echo "No changes"
        fi
     - name: CLean
       run: |
