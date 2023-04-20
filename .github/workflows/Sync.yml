@@ -29,7 +29,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        ANOTHER_PACKAGE: /home/runner/package
+        ANOTHER_PACKAGE: /home/runner/package/
         LOG: /home/runner/rsync.log
       run: |
        mkdir -p /home/runner/.ssh
@@ -41,7 +41,7 @@ jobs:
        ls -al
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
-       rsync -ai --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . > $LOG
+       rsync -n -icrz --delete --exclude=".git*" --exclude="README.md" &ANOTHER_PACKAGE . 2>&1 | grep -E '^(>|[*])' > $LOG
        cat $LOG
        if [ -s "$LOG" ]; then
          git add .
