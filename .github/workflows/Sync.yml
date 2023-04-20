@@ -41,7 +41,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        if rsync -irc --delete --exclude=".git*" --exclude="README.md" "$PACKAGE" ./ | grep -E '^(>|[*])'; then
+        if rsync -irc --delete --exclude=".git*" --exclude="README.md" "$PACKAGE" ./ | grep -qE '^(>|[*])'; then
           rsync -irc --delete --exclude=".git*" --exclude="README.md" "$PACKAGE" ./ | grep -E '^(>|[*])' > $LOG
         else
           touch $LOG
