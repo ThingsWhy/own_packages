@@ -41,6 +41,7 @@ jobs:
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -ai --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . > $LOG
+       cat $LOG
        if [ -s "$LOG" ]; then
          git add .
          git commit -m "Sync package folder from Actions"
