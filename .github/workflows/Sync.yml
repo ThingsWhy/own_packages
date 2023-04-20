@@ -38,6 +38,7 @@ jobs:
        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
        chmod 600 ~/.ssh/id_rsa
        cd ${GITHUB_WORKSPACE}
+       ls -al
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -ai --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . > $LOG
