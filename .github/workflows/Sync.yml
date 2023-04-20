@@ -41,7 +41,7 @@ jobs:
        ls -al
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
-       rsync -n -icrz --delete --exclude=".git*" --exclude="README.md" &ANOTHER_PACKAGE . 2>&1 | grep -E '^(>|[*])' > $LOG
+       rsync -icrz --delete --exclude=".git*" --exclude="README.md" &ANOTHER_PACKAGE . 2>&1 | grep -E '^(>|[*])' > $LOG
        cat $LOG
        if [ -s "$LOG" ]; then
          git add .
