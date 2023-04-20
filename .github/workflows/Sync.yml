@@ -40,7 +40,7 @@ jobs:
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        echo "rsync"
-       rsync -icrz --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . 2>&1 | grep -E '^(>|[*])' > /home/runner/rsync.log
+       rsync -icrz --delete --exclude=".git*" --exclude="README.md" /home/runner/package/ . | grep -E '^(>|[*])' > $LOG
        echo "log"
        cat $LOG
        if [ -s "$LOG" ]; then
