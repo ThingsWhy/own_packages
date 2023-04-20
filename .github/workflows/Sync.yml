@@ -38,11 +38,9 @@ jobs:
        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
        chmod 600 ~/.ssh/id_rsa
        cd ${GITHUB_WORKSPACE}
-       ls -al
        git config user.email "actions@github.com"
        git config user.name "GitHub Actions"
        rsync -icrz --delete --exclude=".git*" --exclude="README.md" &ANOTHER_PACKAGE . 2>&1 | grep -E '^(>|[*])' > $LOG
-       cat $LOG
        if [ -s "$LOG" ]; then
          git add .
          git commit -m "Sync package folder from Actions"
