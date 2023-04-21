@@ -22,7 +22,7 @@ jobs:
         cd "/home/runner"
         mkdir package && cd package
         svn export https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
-        # git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git && rm -rf luci-app-adguardhome/.git*
+        # git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git && rm -rf luci-app-adguardhome/.git*
         svn export https://github.com/linkease/nas-packages/trunk/network/services/ddnsto
         svn export https://github.com/linkease/nas-packages-luci/trunk/luci/luci-app-ddnsto
     - name: Sync package folder to upstream repo
