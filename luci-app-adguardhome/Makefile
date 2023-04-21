@@ -72,4 +72,6 @@ fi
 exit 0
 endef
 
+include $(TOPDIR)/feeds/luci/luci.mk
+
 $(eval $(call BuildPackage,luci-app-adguardhome))
