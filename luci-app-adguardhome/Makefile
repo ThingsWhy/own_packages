@@ -74,4 +74,4 @@ endef
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
-$(eval $(call BuildPackage,luci-app-adguardhome))
+# call BuildPackage - OpenWrt buildroot signature
