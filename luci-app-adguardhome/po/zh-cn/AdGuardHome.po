@@ -237,7 +237,7 @@ msgstr "删除日志"
 msgid "download log"
 msgstr "下载日志"
 
-#/cgi-bin/luci//admin/services/AdGuardHome/manual/
+#/cgi-bin/luci/admin/services/AdGuardHome/manual/
 msgid "Use template"
 msgstr "使用模板"
 #hide button
