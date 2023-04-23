@@ -10,3 +10,4 @@ config AdGuardHome 'AdGuardHome'
 	option upxflag ''
 
 	option waitonboot '0'
+	option version 'v0.107.26'
