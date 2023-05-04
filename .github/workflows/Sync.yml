@@ -35,9 +35,9 @@ jobs:
       run: |
         mkdir -p /home/runner/.ssh
         touch /home/runner/.ssh/known_hosts
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
+        echo "$SSH_PRIVATE_KEY" > /home/runner/.ssh/id_rsa
+        chmod 600 /home/runner/.ssh/id_rsa
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
