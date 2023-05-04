@@ -21,16 +21,17 @@ jobs:
       run: |
         cd "/home/runner"
         mkdir package && cd package
-        svn export https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
         git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git
+        svn export https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist
         svn export https://github.com/linkease/nas-packages/trunk/network/services/ddnsto
         svn export https://github.com/linkease/nas-packages-luci/trunk/luci/luci-app-ddnsto
+        svn export https://github.com/gdy666/luci-app-lucky/trunk/luci-app-lucky && sed -i 's/^#LUCI_DEPENDS:=+lucky/LUCI_DEPENDS:=+lucky/' luci-app-lucky/Makefile
+        svn export https://github.com/gdy666/luci-app-lucky/trunk/lucky
     - name: Sync package folder to upstream repo
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         PACKAGE: /home/runner/package/
-        LOG: /home/runner/rsync.log
       run: |
         mkdir -p /home/runner/.ssh
         touch /home/runner/.ssh/known_hosts
