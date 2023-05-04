@@ -41,7 +41,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        if rsync -irc --delete --exclude=".git*" --exclude='/README.md' "$PACKAGE" ./ | grep -qE '^(>|[*])'; then
+        if rsync -ircl --delete --exclude=".git*" --exclude="/README.md" ../package/ ./ | grep -E '^(cL|\*deleting|>f|cd)'; then
           git add .
           git commit -m "Sync package folder from Actions"
           git push origin main
