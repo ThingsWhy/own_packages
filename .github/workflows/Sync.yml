@@ -34,7 +34,7 @@ jobs:
         cd "/home/runner"
         mkdir package && cd package
         for url in "${DLurl[@]}" ; do
-          if ! eval "$url"; then
+          if ! eval "$url" ; then
             echo "DL=Failed" >> $GITHUB_OUTPUT
           fi
         done
@@ -53,7 +53,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        if rsync -ircl --delete --exclude=".git*" --exclude="/README.md" "$PACKAGE" ./ | grep -E '^(cL|\*deleting|>f|cd)'; then
+        if rsync -ircl --delete --exclude=".git*" --exclude="/README.md" "$PACKAGE" ./ | grep -E '^(cL|\*deleting|>f|cd)' ; then
           git add .
           git commit -m "Sync package folder from Actions"
           git push origin main
