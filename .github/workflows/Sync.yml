@@ -28,7 +28,6 @@ jobs:
           "svn export https://github.com/gdy666/luci-app-lucky/trunk/luci-app-lucky && sed -i 's/^#LUCI_DEPENDS:=+lucky/LUCI_DEPENDS:=+lucky/' luci-app-lucky/Makefile"
           "svn export https://github.com/gdy666/luci-app-lucky/trunk/lucky"
           "svn export https://github.com/sbwml/luci-app-mosdns/trunk/luci-app-mosdns"
-          "svn export https://github.com/sbwml/luci-app-mosdns/trunk/mosdns"
           "svn export https://github.com/sbwml/luci-app-mosdns/trunk/v2dat"
         )
         cd "/home/runner"
