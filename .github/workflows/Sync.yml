@@ -29,6 +29,8 @@ jobs:
           "svn export https://github.com/gdy666/luci-app-lucky/trunk/lucky"
           "svn export https://github.com/sbwml/luci-app-mosdns/trunk/luci-app-mosdns"
           "svn export https://github.com/sbwml/luci-app-mosdns/trunk/v2dat"
+          "svn export https://github.com/messense/aliyundrive-webdav/trunk/openwrt/aliyundrive-webdav"
+          "svn export https://github.com/messense/aliyundrive-webdav/trunk/openwrt/luci-app-aliyundrive-webdav"
         )
         cd "/home/runner"
         mkdir package && cd package
