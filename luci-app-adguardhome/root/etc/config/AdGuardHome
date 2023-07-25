@@ -9,4 +9,4 @@ config AdGuardHome 'AdGuardHome'
 	option binpath '/usr/bin/AdGuardHome'
 	option upxflag ''
 
-	option waitonboot '0'
+	option waitonboot '1'
