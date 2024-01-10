@@ -17,7 +17,7 @@ jobs:
       run: |
         sudo -E apt-get update -y
         sudo -E apt-get install -y subversion rsync
-        SVNAdvertiseV2Protocol Off
+        svn --version
     - name: Get Source
       id: check
       run: |
