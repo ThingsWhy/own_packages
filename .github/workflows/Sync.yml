@@ -16,8 +16,9 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -y
-        sudo -E apt-get install -y subversion=1.9.12 rsync
-        svn --version
+        sudo -E apt-get install -y subversion rsync
+        echo "SVNAdvertiseV2Protocol Off" | sudo tee -a /etc/apache2/sites-available/000-default.conf
+        sudo service apache2 restart
     - name: Get Source
       id: check
       run: |
