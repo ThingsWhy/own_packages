@@ -17,6 +17,7 @@ jobs:
       run: |
         sudo -E apt update -y
         sudo -E apt install libapache2-mod-svn -y
+        sudo ls -al /etc/apache2
         sudo cat /etc/apache2/apache2.conf
     - name: Get Source
       id: check
