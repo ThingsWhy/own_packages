@@ -17,8 +17,9 @@ jobs:
       run: |
         sudo -E apt update -y
         sudo -E apt install libapache2-mod-svn -y
-        sudo ls -al /etc/apache2
-        sudo cat /etc/apache2/apache2.conf
+        sudo -E LoadModule dav_svn_module     modules/mod_dav_svn.so
+        sudo -E ls -al /etc/apache2
+        sudo -E cat /etc/apache2/apache2.conf
     - name: Get Source
       id: check
       run: |
