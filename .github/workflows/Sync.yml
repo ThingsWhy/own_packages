@@ -17,6 +17,7 @@ jobs:
       run: |
         sudo -E apt-get update -y
         sudo -E apt-get install -y subversion rsync
+        SVNAdvertiseV2Protocol Off
     - name: Get Source
       id: check
       run: |
@@ -37,7 +38,7 @@ jobs:
         for url in "${DLurl[@]}"; do
           if ! eval "$url"; then
             echo "DL=Failed" >> $GITHUB_OUTPUT
-            exit 0
+            return 0
           fi
         done
     - name: Sync package folder to upstream repo
