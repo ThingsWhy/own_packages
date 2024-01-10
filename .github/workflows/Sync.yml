@@ -17,9 +17,9 @@ jobs:
       run: |
         sudo -E apt-get update -y
         echo "SVNAdvertiseV2Protocol Off" | sudo tee -a /etc/apache2/sites-available/000-default.conf
-        journalctl -xeu apache2.service
-        apachectl configtest
-        tail -n 50 /var/log/apache2/error.log
+        sudo journalctl -xeu apache2.service
+        sudo apachectl configtest
+        sudo tail -n 50 /var/log/apache2/error.log
     - name: Get Source
       id: check
       run: |
