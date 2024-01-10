@@ -20,8 +20,7 @@ jobs:
       id: check
       run: |
         DLurl=(
-          "git clone --depth=0 https://github.com/ThingsWhy/luci-app-adguardhome.git"
-          # "svn export https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist"
+          "git clone --depth=0 https://github.com/ThingsWhy/luci-app-adguardhome.git package"
           "git clone --depth=0 https://github.com/linkease/nas-packages.git && cp -R nas-packages/network/services/ddnsto package"
           "git clone --depth=0 https://github.com/linkease/nas-packages-luci.git && cp -R nas-packages-luci/luci/luci-app-ddnsto package"
           "git clone --depth=0 https://github.com/gdy666/luci-app-lucky.git && cp -R luci-app-lucky/luci-app-lucky package"
