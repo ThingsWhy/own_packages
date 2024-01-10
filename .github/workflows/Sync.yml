@@ -7,7 +7,7 @@ on:
 
 jobs:
   Get_repo:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -15,7 +15,7 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt-get update -y
+        # sudo -E apt-get update -y
         sudo cat /etc/apache2/apache2.conf
     - name: Get Source
       id: check
