@@ -16,7 +16,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -y
-        sudo -E apt-get install -y subversion rsync
+        sudo -E apt-get install -y subversion=1.9.12 rsync
         svn --version
     - name: Get Source
       id: check
@@ -38,7 +38,7 @@ jobs:
         for url in "${DLurl[@]}"; do
           if ! eval "$url"; then
             echo "DL=Failed" >> $GITHUB_OUTPUT
-            return 0
+            exit 0
           fi
         done
     - name: Sync package folder to upstream repo
