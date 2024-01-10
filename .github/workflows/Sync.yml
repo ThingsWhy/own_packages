@@ -15,7 +15,8 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # sudo -E apt-get update -y
+        sudo -E apt update -y
+        sudo -E apt install libapache2-mod-svn -y
         sudo cat /etc/apache2/apache2.conf
     - name: Get Source
       id: check
