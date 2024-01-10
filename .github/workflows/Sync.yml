@@ -20,6 +20,7 @@ jobs:
         sudo journalctl -xeu apache2.service
         sudo apachectl configtest
         sudo tail -n 50 /var/log/apache2/error.log
+        apache2 -v
     - name: Get Source
       id: check
       run: |
