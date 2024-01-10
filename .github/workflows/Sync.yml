@@ -16,7 +16,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -y
-        sudo ll /etc/apache2
+        sudo ls -al /etc/apache2
     - name: Get Source
       id: check
       run: |
