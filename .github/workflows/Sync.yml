@@ -24,7 +24,7 @@ jobs:
           "git clone --depth=1 https://github.com/linkease/nas-packages.git && cp -R nas-packages/network/services/ddnsto package"
           "git clone --depth=1 https://github.com/linkease/nas-packages-luci.git && cp -R nas-packages-luci/luci/luci-app-ddnsto package"
           "git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git && cp -R luci-app-lucky/{luci-app-lucky,lucky} package"
-          "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{mosdns,v2dat} package"
+          "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{luci-app-mosdns,v2dat} package"
           "git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git && cp -R aliyundrive-webdav/openwrt/{aliyundrive-webdav,luci-app-aliyundrive-webdav} package"
         )
         cd "/home/runner"
