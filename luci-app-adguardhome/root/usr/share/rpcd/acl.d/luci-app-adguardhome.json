@@ -4,6 +4,7 @@
 		"read": {
             "file": {
                 "/usr/share/AdGuardHome/addhost.sh": [ "exec" ],
+		"/usr/share/AdGuardHome/firewall.start": [ "read" ],
                 "/usr/share/AdGuardHome/getsyslog.sh": [ "exec" ],
                 "/usr/share/AdGuardHome/gfw2adg.sh": [ "exec" ],
                 "/usr/share/AdGuardHome/gfwipset2adg.sh": [ "exec" ],
@@ -20,7 +21,7 @@
 		},
 		"write": {
             "file": {
-                "/usr/share/AdGuardHome/AdGuardHome_template.yaml": [ "write" ],
+		"/usr/share/AdGuardHome/firewall.start": [ "write" ],
                 "/usr/share/AdGuardHome/links.txt": [ "write" ]
             },
 			"uci": [ "AdGuardHome", "adguardhome" ]
