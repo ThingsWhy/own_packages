@@ -8,16 +8,18 @@ on:
 jobs:
   Get_repo:
     runs-on: ubuntu-latest
+    
+    # --------------------------------------------------------
+    # 关键改动 1: 在此处为 Job 授予 GITHUB_TOKEN 写入权限
+    permissions:
+      contents: write
+    # --------------------------------------------------------
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-
-    # - name: Init Building Dependencies # Keep commented if not needed
-    #   env:
-    #     DEBIAN_FRONTEND: noninteractive
-    #   run: |
-    #     # sudo -E apt update -y
-    #     # Add package installations here if necessary
+      # checkout@v4 会自动使用 GITHUB_TOKEN
+      # 并且 git remote origin 会被设置为 HTTPS 格式，已包含认证
 
     - name: Get Source Packages into Temp Dir
       id: get_source
@@ -32,7 +34,7 @@ jobs:
           "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{luci-app-mosdns,v2dat} $TEMP_PACKAGE_DIR/"
           "git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git && cp -R aliyundrive-webdav/openwrt/{aliyundrive-webdav,luci-app-aliyundrive-webdav} $TEMP_PACKAGE_DIR/"
         )
-        cd "$TEMP_PACKAGE_DIR" # Work inside temp dir for clones/copies relative paths
+        cd "$TEMP_PACKAGE_DIR"
         for url in "${DLurl[@]}"; do
           echo "Executing: $url"
           if ! eval "$url"; then
@@ -41,39 +43,48 @@ jobs:
             exit 1 # Fail the step explicitly
           fi
         done
-        # Cleanup cloned repos after copying, keep only the target package dirs within TEMP_PACKAGE_DIR
         rm -rf nas-packages nas-packages-luci luci-app-lucky luci-app-mosdns aliyundrive-webdav $TEMP_PACKAGE_DIR/luci-app-adguardhome/.git
 
     - name: Sync package folder to upstream repo
       if: steps.get_source.outputs.DL != 'Failed'
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for checkout action, might not be needed for push if using SSH key
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        PACKAGE_SOURCE: /home/runner/temp_packages/ # Source is the temp directory
+        # --------------------------------------------------------
+        # 关键改动 2: 不再需要 SSH_PRIVATE_KEY
+        # GITHUB_TOKEN 变量由 GitHub 自动提供
+        # --------------------------------------------------------
+        PACKAGE_SOURCE: /home/runner/temp_packages/
       run: |
-        mkdir -p ~/.ssh
-        touch ~/.ssh/known_hosts
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
+        # --------------------------------------------------------
+        # 关键改动 2: 移除所有 SSH 设置
+        # mkdir -p ~/.ssh
+        # touch ~/.ssh/known_hosts
+        # ssh-keyscan github.com >> ~/.ssh/known_hosts
+        # echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        # chmod 600 ~/.ssh/id_rsa
+        # --------------------------------------------------------
 
         cd ${GITHUB_WORKSPACE}
-        git config user.email "actions@github.com"
-        git config user.name "GitHub Actions"
+        
+        # 推荐使用标准的 bot 用户信息
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
 
         echo "Syncing from $PACKAGE_SOURCE to ${GITHUB_WORKSPACE}/"
-        # Sync using rsync (removed -i, kept -c for safer check)
         rsync -rcl --delete --exclude=".git*" --exclude="README.md" "$PACKAGE_SOURCE" ./
 
         # Check for changes using git status
         if ! git diff --quiet || ! git diff --staged --quiet; then
            echo "Changes detected by git, committing and pushing..."
            git add .
-           # Check if there are staged changes before committing
            if ! git diff --staged --quiet; then
              git commit -m "Sync package folder from Actions - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-             # Set remote URL to SSH format for pushing
-             git remote set-url origin git@github.com:${{ github.repository }}.git
+             
+             # --------------------------------------------------------
+             # 关键改动 2: 移除将 remote URL 强制改为 SSH 的命令
+             # git remote set-url origin git@github.com:${{ github.repository }}.git
+             # --------------------------------------------------------
+
+             # 直接推送即可，checkout action 已配置好 HTTPS remote
              git push origin main
            else
              echo "No staged changes to commit after git add."
@@ -82,8 +93,7 @@ jobs:
            echo "No changes detected by git status after rsync."
         fi
 
-        # Clean up SSH key and temp dir
-        rm -f ~/.ssh/id_rsa
+        # 清理临时目录
         rm -rf "$PACKAGE_SOURCE"
 
     - name: Delete old workflow runs
