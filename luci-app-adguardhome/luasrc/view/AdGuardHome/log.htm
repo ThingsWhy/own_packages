@@ -1,110 +1,174 @@
 <%+cbi/valueheader%>
-<input type="checkbox" name="NAME" value="reverse" onclick=" return reverselog()" style="vertical-align:middle;height: auto;" checked><%:reverse%></input>
-<%if self.timereplace then%>
-<input type="checkbox" name="NAME" value="localtime" onclick=" return chlogtime()" style="vertical-align:middle;height: auto;" checked><%:localtime%></input><br>
-<%end%>
-<textarea id="cbid.logview.1.conf" class="cbi-input-textarea" style="width: 100%;display:inline" data-update="change" rows="32" cols="60" readonly="readonly" > </textarea>
-<input type="button" class="cbi-button cbi-button-apply" id="apply_update_button" value="<%:dellog%>" onclick=" return apply_del_log() "/>
-<input type="button" class="cbi-button cbi-button-apply" value="<%:download log%>" style=" display:inline;" onclick=" return download_log()" />
+<% local uci = require "luci.model.uci".cursor() %>
+<% local logfile = uci:get("AdGuardHome","AdGuardHome","logfile") or "" %>
+<% local can_process_time = (logfile ~= "syslog" and logfile ~= "") %>
+<% local can_poll = (logfile ~= "") %>
+
+<input type="checkbox" id="reverseCheckbox" value="reverse" onclick="return reverselog()" style="vertical-align:middle;height: auto;" checked><%:reverse%></input>
+<% if can_process_time then %>
+<input type="checkbox" id="localtimeCheckbox" value="localtime" onclick="return chlogtime()" style="vertical-align:middle;height: auto;" checked><%:localtime%></input><br>
+<% end %>
+<textarea id="logtextarea" class="cbi-input-textarea" style="width: 100%;display:inline" data-update="change" rows="32" cols="60" readonly="readonly"></textarea>
+<input type="button" class="cbi-button cbi-button-apply" id="apply_del_log_button" value="<%:dellog%>" onclick="return apply_del_log()" />
+<input type="button" class="cbi-button cbi-button-apply" value="<%:download log%>" style="display:inline;" onclick="return download_log()" />
+
 <script type="text/javascript">//<![CDATA[
-var islogreverse = true;
-var isutc2local = <%=tostring(self.timereplace)%>;
-function createAndDownloadFile(fileName, content) {
-    var aTag = document.createElement('a');
-    var blob = new Blob([content]);
-    aTag.download = fileName;
-    aTag.href = URL.createObjectURL(blob);
-    aTag.click();
-    URL.revokeObjectURL(blob);
-}
-function download_log(){
-	var lv = document.getElementById('cbid.logview.1.conf');
-	var dt = new Date();
-	var timestamp = (dt.getMonth()+1)+"-"+dt.getDate()+"-"+dt.getHours()+"_"+dt.getMinutes();
-	createAndDownloadFile("AdGuardHome"+timestamp+".log",lv.innerHTML)
-	return
-}
-function apply_del_log(){
-	XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[dodellog]])%>',null,function(x, data){
-	var lv = document.getElementById('cbid.logview.1.conf');
-		lv.innerHTML="";
+	var logTextarea = document.getElementById('logtextarea');
+	var isLogReverse = true;
+	var isUtc2Local = <%=tostring(can_process_time)%>;
+	var pollActive = false;
+
+	// URLs
+	var getLogUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "getlog")%>';
+	var delLogUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "dodellog")%>';
+
+	// --- Utility Functions ---
+	function createAndDownloadFile(fileName, content) {
+		var aTag = document.createElement('a');
+		var blob = new Blob([content], { type: 'text/plain;charset=utf-8' }); // Specify MIME type
+		aTag.download = fileName;
+		aTag.href = URL.createObjectURL(blob);
+		document.body.appendChild(aTag); // Required for Firefox
+		aTag.click();
+		document.body.removeChild(aTag); // Clean up
+		URL.revokeObjectURL(blob);
 	}
-		);
-	return
-}
-function chlogtime(){
-	var lv = document.getElementById('cbid.logview.1.conf');
-	if (isutc2local){
-	lv.innerHTML=line_toUTC(lv.innerHTML).join('\n');
-	isutc2local=false;
-	}else{
-	lv.innerHTML=line_tolocal(lv.innerHTML).join('\n');
-	isutc2local=true;
+
+	function download_log() {
+		var dt = new Date();
+		var timestamp = (dt.getMonth() + 1) + "-" + dt.getDate() + "-" + dt.getHours() + "_" + dt.getMinutes();
+		createAndDownloadFile("AdGuardHome" + timestamp + ".log", logTextarea.value);
+		return false; // Prevent default
 	}
-	return
-}
-function reverselog(){
-	var lv = document.getElementById('cbid.logview.1.conf');
-	lv.innerHTML=lv.innerHTML.split('\n').reverse().join('\n')
-	if (islogreverse){
-	islogreverse=false;
-	}else{
-	islogreverse=true;
+
+	function apply_del_log() {
+		L.Request.get(delLogUrl)
+			.then(function(response) {
+				logTextarea.value = ""; // Clear textarea on success
+			})
+			.catch(function(error) {
+				console.error("Error deleting log:", error);
+				alert("<%:Error deleting log: %>" + error.statusText);
+			});
+		return false; // Prevent default
 	}
-	return
-}
-function p(s) {
-        return s < 10 ? '0' + s: s;
-}
-function line_tolocal(str){
-var strt=new Array();
-str.trim().split('\n').forEach(function(v, i) {
-var dt = new Date(v.substring(0,19)+" UTC");
-if (dt != "Invalid Date"){
-  strt[i]=dt.getFullYear()+"/"+p(dt.getMonth()+1)+"/"+p(dt.getDate())+" "+p(dt.getHours())+":"+p(dt.getMinutes())+":"+p(dt.getSeconds())+v.substring(19);
-}else{
-  strt[i]=v;}})
-return strt
-}
-function line_toUTC(str){
-var strt=new Array();
-str.trim().split('\n').forEach(function(v, i) {
-var dt = new Date(v.substring(0,19))
-if (dt != "Invalid Date"){
-  strt[i]=dt.getUTCFullYear()+"/"+p(dt.getUTCMonth()+1)+"/"+p(dt.getUTCDate())+" "+p(dt.getUTCHours())+":"+p(dt.getUTCMinutes())+":"+p(dt.getUTCSeconds())+v.substring(19);
-}else{
-  strt[i]=v;}})
-return strt
-}
-function poll_check(){
-XHR.poll(3, '<%=url([[admin]], [[services]], [[AdGuardHome]], [[getlog]])%>', null,
-	function(x, data) {
-		var lv = document.getElementById('cbid.logview.1.conf');
-		if (x.responseText && lv) {
-			if (isutc2local)
-			{
-				var lines=line_tolocal(x.responseText);
-				if (islogreverse){
-					lv.innerHTML = lines.reverse().join('\n')+lv.innerHTML;
-				}else{
-					lv.innerHTML += lines.join('\n');
-				}
-			}else{
-				if (islogreverse){
-					lv.innerHTML = x.responseText.split('\n').reverse().join('\n')+lv.innerHTML;
-				}else{
-					lv.innerHTML += x.responseText;
-				}
-			}
+
+	function p(s) { // Pad number helper
+		return s < 10 ? '0' + s : s;
+	}
+
+	function convertLineTime(line, toLocal) {
+		if (!line || line.length < 19) return line; // Basic check
+		var dateStr = line.substring(0, 19);
+		var restOfLine = line.substring(19);
+		var dt;
+
+		if (toLocal) {
+			dt = new Date(dateStr.replace(/\//g, '-') + " UTC"); // Assume UTC input
+			if (dt.toString() === "Invalid Date") return line; // Keep original if parsing failed
+			return dt.getFullYear() + "/" + p(dt.getMonth() + 1) + "/" + p(dt.getDate()) + " " +
+			       p(dt.getHours()) + ":" + p(dt.getMinutes()) + ":" + p(dt.getSeconds()) + restOfLine;
+		} else {
+			dt = new Date(dateStr.replace(/\//g, '-')); // Assume local input
+			if (dt.toString() === "Invalid Date") return line; // Keep original if parsing failed
+			return dt.getUTCFullYear() + "/" + p(dt.getUTCMonth() + 1) + "/" + p(dt.getUTCDate()) + " " +
+			       p(dt.getUTCHours()) + ":" + p(dt.getUTCMinutes()) + ":" + p(dt.getUTCSeconds()) + restOfLine;
 		}
 	}
-);}
-<%if self.pollcheck then%>
-poll_check();
-<%else%>
-var lv = document.getElementById('cbid.logview.1.conf');
-lv.innerHTML="<%:Please add log path in config to enable log%>"
-<%end%>
+
+	// --- Log Display Functions ---
+
+	function processNewLogChunk(text) {
+		if (!text || text.trim() === "") return ""; // Skip empty updates
+
+		var lines = text.trim().split('\n');
+
+		if (isUtc2Local && can_process_time) {
+			lines = lines.map(function(line) { return convertLineTime(line, true); });
+		}
+
+		return lines.join('\n') + '\n'; // Add trailing newline
+	}
+
+	function appendLog(processedText) {
+		if (isLogReverse) {
+			logTextarea.value = processedText + logTextarea.value;
+			logTextarea.scrollTop = 0; // Scroll to top
+		} else {
+			logTextarea.value += processedText;
+			logTextarea.scrollTop = logTextarea.scrollHeight; // Scroll to bottom
+		}
+	}
+
+	function reverselog() {
+		var lines = logTextarea.value.split('\n');
+		// Remove last empty line if present before reversing
+		if (lines.length > 0 && lines[lines.length - 1] === "") {
+			lines.pop();
+		}
+		logTextarea.value = lines.reverse().join('\n');
+		// Add back trailing newline if needed, or adjust based on preference
+		if (logTextarea.value !== "") {
+			logTextarea.value += '\n';
+		}
+
+		isLogReverse = !isLogReverse;
+		// Maintain scroll position (optional)
+		if (isLogReverse) {
+			logTextarea.scrollTop = 0;
+		} else {
+			logTextarea.scrollTop = logTextarea.scrollHeight;
+		}
+		return false;
+	}
+
+	function chlogtime() {
+		isUtc2Local = !isUtc2Local;
+		var lines = logTextarea.value.trim().split('\n');
+		var convertedLines = lines.map(function(line) {
+			return convertLineTime(line, isUtc2Local);
+		});
+		logTextarea.value = convertedLines.join('\n') + '\n';
+		// Maintain scroll position
+		if (isLogReverse) {
+			logTextarea.scrollTop = 0;
+		} else {
+			logTextarea.scrollTop = logTextarea.scrollHeight;
+		}
+		return false;
+	}
+
+	// --- Polling ---
+	function handlePollUpdate(response) {
+		var processedText = processNewLogChunk(response);
+		if (processedText) {
+			appendLog(processedText);
+		}
+	}
+
+	function handlePollError(error) {
+		console.error("Log polling error:", error);
+		// Append error only once or use a status indicator
+		if (!logTextarea.value.includes("<%:Log polling error%>")) {
+			appendLog("\n<%:Log polling error.%>");
+		}
+		pollActive = false; // Stop polling on error
+	}
+
+	function startPolling() {
+		if (pollActive) return;
+		pollActive = true;
+		L.Poll.add(getLogUrl, 3, handlePollUpdate)
+			.catch(handlePollError);
+	}
+
+	// --- Initial Load ---
+	<% if can_poll then %>
+		startPolling();
+	<% else %>
+		logTextarea.value = "<%:Please add log path in config to enable log%>";
+	<% end %>
+
 //]]>
-</script>	
+</script>
 <%+cbi/valuefooter%>

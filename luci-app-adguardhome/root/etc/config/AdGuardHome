@@ -3,10 +3,19 @@ config AdGuardHome 'AdGuardHome'
 	option httpport '3000'
 	option redirect 'none'
 	option configpath '/etc/AdGuardHome.yaml'
-	option workdir '/tmp/AdGuardHome'
-	option logfile '/tmp/AdGuardHome.log'
+	# Default workdir changed to /opt/AdGuardHome/work for persistence.
+	# Using /tmp will result in data loss (stats, query logs) upon reboot.
+	# Ensure the directory exists or AdGuardHome can create it.
+	option workdir '/opt/AdGuardHome/work'
+	# Default logfile changed to /var/log/AdGuardHome.log for persistence
+	option logfile '/var/log/AdGuardHome.log'
 	option verbose '0'
-	option binpath '/usr/bin/AdGuardHome'
+	option binpath '/usr/bin/AdGuardHome/AdGuardHome' # Adjusted default binary path based on Makefile
 	option upxflag ''
-
 	option waitonboot '1'
+	# backupwdpath default should likely match workdir or another persistent location
+	option backupwdpath '/opt/AdGuardHome/backup'
+	# list backupfile 'stats.db'
+	# list backupfile 'querylog.json' # Query log backup might consume significant space
+	# list backupfile 'sessions.db'
+	# list backupfile 'filters'

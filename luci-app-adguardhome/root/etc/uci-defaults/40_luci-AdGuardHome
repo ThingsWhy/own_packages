@@ -1,12 +1,25 @@
 #!/bin/sh
 
+# Setup ucitrack for configuration changes
 uci -q batch <<-EOF >/dev/null 2>&1
 	delete ucitrack.@AdGuardHome[-1]
 	add ucitrack AdGuardHome
 	set ucitrack.@AdGuardHome[-1].init=AdGuardHome
 	commit ucitrack
+	# Clean up old test flag if present
 	delete AdGuardHome.AdGuardHome.ucitracktest
+	commit AdGuardHome
 EOF
 
-rm -f /tmp/luci-indexcache
+# Check if service is enabled in config and trigger initial start/reload
+enable=$(uci -q get AdGuardHome.AdGuardHome.enabled)
+if [ "$enable" = "1" ]; then
+    # Use reload if already running (e.g., during upgrade), otherwise start
+    # Using 'restart' might be simpler and safer during initial setup
+    /etc/init.d/AdGuardHome restart >/dev/null 2>&1
+fi
+
+# Clear LuCI cache
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*
+
 exit 0
