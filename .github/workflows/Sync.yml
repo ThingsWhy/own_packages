@@ -11,53 +11,81 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-    - name: Init Building Dependencies
-      env:
-        DEBIAN_FRONTEND: noninteractive
+
+    # - name: Init Building Dependencies # Keep commented if not needed
+    #   env:
+    #     DEBIAN_FRONTEND: noninteractive
+    #   run: |
+    #     # sudo -E apt update -y
+    #     # Add package installations here if necessary
+
+    - name: Get Source Packages into Temp Dir
+      id: get_source
       run: |
-        # sudo -E apt update -y
-    - name: Get Source
-      id: check
-      run: |
+        TEMP_PACKAGE_DIR="/home/runner/temp_packages"
+        mkdir -p "$TEMP_PACKAGE_DIR"
         DLurl=(
-          "git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git package/luci-app-adguardhome"
-          "git clone --depth=1 https://github.com/linkease/nas-packages.git && cp -R nas-packages/network/services/ddnsto package"
-          "git clone --depth=1 https://github.com/linkease/nas-packages-luci.git && cp -R nas-packages-luci/luci/luci-app-ddnsto package"
-          "git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git && cp -R luci-app-lucky/{luci-app-lucky,lucky} package"
-          "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{luci-app-mosdns,v2dat} package"
-          "git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git && cp -R aliyundrive-webdav/openwrt/{aliyundrive-webdav,luci-app-aliyundrive-webdav} package"
+          "git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git $TEMP_PACKAGE_DIR/luci-app-adguardhome"
+          "git clone --depth=1 https://github.com/linkease/nas-packages.git && cp -R nas-packages/network/services/ddnsto $TEMP_PACKAGE_DIR/"
+          "git clone --depth=1 https://github.com/linkease/nas-packages-luci.git && cp -R nas-packages-luci/luci/luci-app-ddnsto $TEMP_PACKAGE_DIR/"
+          "git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git && cp -R luci-app-lucky/{luci-app-lucky,lucky} $TEMP_PACKAGE_DIR/"
+          "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{luci-app-mosdns,v2dat} $TEMP_PACKAGE_DIR/"
+          "git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git && cp -R aliyundrive-webdav/openwrt/{aliyundrive-webdav,luci-app-aliyundrive-webdav} $TEMP_PACKAGE_DIR/"
         )
-        cd "/home/runner"
-        mkdir -p package
+        cd "$TEMP_PACKAGE_DIR" # Work inside temp dir for clones/copies relative paths
         for url in "${DLurl[@]}"; do
+          echo "Executing: $url"
           if ! eval "$url"; then
+            echo "::error::Failed to execute: $url"
             echo "DL=Failed" >> $GITHUB_OUTPUT
-            exit 0
+            exit 1 # Fail the step explicitly
           fi
         done
+        # Cleanup cloned repos after copying, keep only the target package dirs within TEMP_PACKAGE_DIR
+        rm -rf nas-packages nas-packages-luci luci-app-lucky luci-app-mosdns aliyundrive-webdav $TEMP_PACKAGE_DIR/luci-app-adguardhome/.git
+
     - name: Sync package folder to upstream repo
-      if: steps.check.outputs.DL != 'Failed'
+      if: steps.get_source.outputs.DL != 'Failed'
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for checkout action, might not be needed for push if using SSH key
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        PACKAGE: /home/runner/package/
+        PACKAGE_SOURCE: /home/runner/temp_packages/ # Source is the temp directory
       run: |
-        mkdir -p /home/runner/.ssh
-        touch /home/runner/.ssh/known_hosts
-        ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
-        echo "$SSH_PRIVATE_KEY" > /home/runner/.ssh/id_rsa
-        chmod 600 /home/runner/.ssh/id_rsa
+        mkdir -p ~/.ssh
+        touch ~/.ssh/known_hosts
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
         cd ${GITHUB_WORKSPACE}
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        if rsync -ircl --delete --exclude=".git*" --exclude="/README.md" "$PACKAGE" ./ | grep -E '^(cL|\*deleting|>f|cd)'; then
-          git add .
-          git commit -m "Sync package folder from Actions"
-          git push origin main
+
+        echo "Syncing from $PACKAGE_SOURCE to ${GITHUB_WORKSPACE}/"
+        # Sync using rsync (removed -i, kept -c for safer check)
+        rsync -rcl --delete --exclude=".git*" --exclude="README.md" "$PACKAGE_SOURCE" ./
+
+        # Check for changes using git status
+        if ! git diff --quiet || ! git diff --staged --quiet; then
+           echo "Changes detected by git, committing and pushing..."
+           git add .
+           # Check if there are staged changes before committing
+           if ! git diff --staged --quiet; then
+             git commit -m "Sync package folder from Actions - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+             # Set remote URL to SSH format for pushing
+             git remote set-url origin git@github.com:${{ github.repository }}.git
+             git push origin main
+           else
+             echo "No staged changes to commit after git add."
+           fi
         else
-          echo "No Changes"
+           echo "No changes detected by git status after rsync."
         fi
-        rm -f /home/runner/.ssh/id_rsa
+
+        # Clean up SSH key and temp dir
+        rm -f ~/.ssh/id_rsa
+        rm -rf "$PACKAGE_SOURCE"
+
     - name: Delete old workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
