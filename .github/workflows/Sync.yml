@@ -10,81 +10,87 @@ jobs:
     runs-on: ubuntu-latest
     
     # --------------------------------------------------------
-    # 关键改动 1: 在此处为 Job 授予 GITHUB_TOKEN 写入权限
+    # 修复 1: 增加 'actions: write' 权限
     permissions:
-      contents: write
+      contents: write  # 用于 git push
+      actions: write   # 用于 delete-workflow-runs
     # --------------------------------------------------------
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-      # checkout@v4 会自动使用 GITHUB_TOKEN
-      # 并且 git remote origin 会被设置为 HTTPS 格式，已包含认证
 
+    # --------------------------------------------------------
+    # 修复 2B: 重写此步骤以避免名称冲突
     - name: Get Source Packages into Temp Dir
       id: get_source
       run: |
+        set -e # 任何命令失败立即退出
         TEMP_PACKAGE_DIR="/home/runner/temp_packages"
         mkdir -p "$TEMP_PACKAGE_DIR"
-        DLurl=(
-          "git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git $TEMP_PACKAGE_DIR/luci-app-adguardhome"
-          "git clone --depth=1 https://github.com/linkease/nas-packages.git && cp -R nas-packages/network/services/ddnsto $TEMP_PACKAGE_DIR/"
-          "git clone --depth=1 https://github.com/linkease/nas-packages-luci.git && cp -R nas-packages-luci/luci/luci-app-ddnsto $TEMP_PACKAGE_DIR/"
-          "git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git && cp -R luci-app-lucky/{luci-app-lucky,lucky} $TEMP_PACKAGE_DIR/"
-          "git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git && cp -R luci-app-mosdns/{luci-app-mosdns,v2dat} $TEMP_PACKAGE_DIR/"
-          "git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git && cp -R aliyundrive-webdav/openwrt/{aliyundrive-webdav,luci-app-aliyundrive-webdav} $TEMP_PACKAGE_DIR/"
-        )
         cd "$TEMP_PACKAGE_DIR"
-        for url in "${DLurl[@]}"; do
-          echo "Executing: $url"
-          if ! eval "$url"; then
-            echo "::error::Failed to execute: $url"
-            echo "DL=Failed" >> $GITHUB_OUTPUT
-            exit 1 # Fail the step explicitly
-          fi
-        done
-        rm -rf nas-packages nas-packages-luci luci-app-lucky luci-app-mosdns aliyundrive-webdav $TEMP_PACKAGE_DIR/luci-app-adguardhome/.git
+        echo "Working directory: $PWD"
+
+        echo "Cloning luci-app-adguardhome..."
+        git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git luci-app-adguardhome
+        rm -rf luci-app-adguardhome/.git
+
+        echo "Cloning nas-packages (for ddnsto)..."
+        git clone --depth=1 https://github.com/linkease/nas-packages.git _nas-packages
+        cp -R _nas-packages/network/services/ddnsto ./ddnsto
+
+        echo "Cloning nas-packages-luci (for luci-app-ddnsto)..."
+        git clone --depth=1 https://github.com/linkease/nas-packages-luci.git _nas-packages-luci
+        cp -R _nas-packages-luci/luci/luci-app-ddnsto ./luci-app-ddnsto
+
+        echo "Cloning luci-app-lucky..."
+        git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git _luci-app-lucky
+        cp -R _luci-app-lucky/luci-app-lucky ./luci-app-lucky
+        cp -R _luci-app-lucky/lucky ./lucky
+
+        echo "Cloning luci-app-mosdns..."
+        git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git _luci-app-mosdns
+        cp -R _luci-app-mosdns/luci-app-mosdns ./luci-app-mosdns
+        cp -R _luci-app-mosdns/v2dat ./v2dat
+
+        echo "Cloning aliyundrive-webdav..."
+        git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git _aliyundrive-webdav
+        cp -R _aliyundrive-webdav/openwrt/aliyundrive-webdav ./aliyundrive-webdav
+        cp -R _aliyundrive-webdav/openwrt/luci-app-aliyundrive-webdav ./luci-app-aliyundrive-webdav
+
+        echo "Cleaning up cloned repos..."
+        rm -rf _* # 删除所有带下划线的临时仓库目录
+
+        echo "Source packages prepared successfully."
+      shell: bash
 
     - name: Sync package folder to upstream repo
-      if: steps.get_source.outputs.DL != 'Failed'
+      if: success() # 仅在上一步成功时运行
       env:
-        # --------------------------------------------------------
-        # 关键改动 2: 不再需要 SSH_PRIVATE_KEY
-        # GITHUB_TOKEN 变量由 GitHub 自动提供
-        # --------------------------------------------------------
         PACKAGE_SOURCE: /home/runner/temp_packages/
       run: |
-        # --------------------------------------------------------
-        # 关键改动 2: 移除所有 SSH 设置
-        # mkdir -p ~/.ssh
-        # touch ~/.ssh/known_hosts
-        # ssh-keyscan github.com >> ~/.ssh/known_hosts
-        # echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        # chmod 600 ~/.ssh/id_rsa
-        # --------------------------------------------------------
-
         cd ${GITHUB_WORKSPACE}
         
-        # 推荐使用标准的 bot 用户信息
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config user.name "github-actions[bot]"
 
         echo "Syncing from $PACKAGE_SOURCE to ${GITHUB_WORKSPACE}/"
-        rsync -rcl --delete --exclude=".git*" --exclude="README.md" "$PACKAGE_SOURCE" ./
+        
+        # --------------------------------------------------------
+        # 修复 2A: 增加 --exclude=".github"
+        rsync -rcl --delete \
+          --exclude=".git*" \
+          --exclude="README.md" \
+          --exclude=".github" \
+          "$PACKAGE_SOURCE" ./
+        # --------------------------------------------------------
 
-        # Check for changes using git status
+        # 检查是否有实际变更
         if ! git diff --quiet || ! git diff --staged --quiet; then
            echo "Changes detected by git, committing and pushing..."
            git add .
            if ! git diff --staged --quiet; then
              git commit -m "Sync package folder from Actions - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-             
-             # --------------------------------------------------------
-             # 关键改动 2: 移除将 remote URL 强制改为 SSH 的命令
-             # git remote set-url origin git@github.com:${{ github.repository }}.git
-             # --------------------------------------------------------
-
-             # 直接推送即可，checkout action 已配置好 HTTPS remote
              git push origin main
            else
              echo "No staged changes to commit after git add."
@@ -97,6 +103,8 @@ jobs:
         rm -rf "$PACKAGE_SOURCE"
 
     - name: Delete old workflow runs
+      # 'if: always()' 确保即使同步失败，也会执行清理
+      if: always() 
       uses: Mattraks/delete-workflow-runs@v2
       with:
         token: ${{ github.token }}
