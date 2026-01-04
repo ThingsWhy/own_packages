@@ -7,12 +7,11 @@ local sys = require("luci.sys")
 local io = require("io")
 local table = require("table")
 local string = require("string")
-local util = require("luci.util") -- Added for pcall wrapper
+local util = require("luci.util")
 
 -- Helper function for pcall results
 local function check_pcall(ok, ...)
 	if not ok then
-		-- print(debug.traceback("pcall failed: " .. tostring(res)))
 		return nil, ...
 	end
 	return true, ...
@@ -33,10 +32,9 @@ function index()
 end
 
 function get_template_config()
-	-- Reusing function from manual.lua for consistency and safety
-	local ok, template_content = check_pcall(loadfile("/usr/lib/lua/luci/model/cbi/AdGuardHome/manual.lua")) -- Load manual.lua
+	local ok, template_content = check_pcall(loadfile("/usr/lib/lua/luci/model/cbi/AdGuardHome/manual.lua"))
 	if ok and template_content and template_content().gen_template_config then
-		local ok_gen, content = check_pcall(template_content().gen_template_config) -- Call the function
+		local ok_gen, content = check_pcall(template_content().gen_template_config)
 		if ok_gen then
 			http.prepare_content("text/plain; charset=utf-8")
 			http.write(content or "-- Error generating template --")
@@ -51,18 +49,16 @@ function get_template_config()
 end
 
 function reload_config()
-	-- Safely remove temporary config file
 	local ok, err = check_pcall(fs.remove, "/tmp/AdGuardHometmpconfig.yaml")
-	-- Respond even if remove failed
 	http.prepare_content("application/json")
-	-- 修复：返回空 JSON 对象而非空字符串，防止前端解析失败
+	-- 修复：返回空 JSON 对象 '{}' 而非空字符串，防止前端 JSON.parse 失败
 	http.write('{}')
 end
 
 function act_status()
 	local e = {}
-	local binpath = uci:get("AdGuardHome", "AdGuardHome", "binpath") or "/usr/bin/AdGuardHome/AdGuardHome" -- Default
-	local cmd = string.format("pgrep -f ^%s", util.shellquote(binpath)) -- Use pgrep -f for more specific match
+	local binpath = uci:get("AdGuardHome", "AdGuardHome", "binpath") or "/usr/bin/AdGuardHome/AdGuardHome"
+	local cmd = string.format("pgrep -f ^%s", util.shellquote(binpath))
 	local ok_call, ret = check_pcall(sys.call, cmd .. " >/dev/null")
 	e.running = (ok_call and ret == 0)
 
@@ -74,15 +70,12 @@ function act_status()
 end
 
 function do_update()
-	-- Clear log position indicator safely
 	check_pcall(fs.writefile, "/var/run/lucilogpos", "0")
 
-	-- Prepare response immediately
 	http.prepare_content("application/json")
-	-- 修复：返回空 JSON 对象而非空字符串，防止前端解析失败
+	-- 修复：返回空 JSON 对象 '{}'
 	http.write('{}')
 
-	-- Determine argument
 	local arg = ""
 	if http.formvalue("force") == "1" then
 		arg = "force"
@@ -96,21 +89,14 @@ function do_update()
 		util.shellquote(log_file)
 	)
 
-	-- Check if update script is already running
 	local ok_access_run, _ = check_pcall(fs.access, "/var/run/update_core")
 	if ok_access_run then
 		if arg == "force" then
-			-- Kill existing process and start new one in background
-			-- Use pgrep -f to find the specific script
-			local pgrep_cmd = string.format("pgrep -f %s", util.shellquote(update_script))
-			local kill_cmd = string.format("pkill -f %s", util.shellquote(update_script)) -- More direct kill
-			-- Execute kill and then start, ignore kill errors if process already finished
+			local kill_cmd = string.format("pkill -f %s", util.shellquote(update_script))
 			check_pcall(sys.call, kill_cmd .. " ; " .. cmd .. " &")
 		end
-		-- If not force and already running, do nothing
 	else
-		-- Start update script in background
-		check_pcall(sys.exec_background, cmd) -- Use exec_background
+		check_pcall(sys.exec_background, cmd)
 	end
 end
 
@@ -125,12 +111,11 @@ function get_log()
 		return
 	elseif logfile_uci == "syslog" then
 		is_syslog = true
-		logfile_path = "/tmp/AdGuardHometmp.log" -- Target temp file for syslog
+		logfile_path = "/tmp/AdGuardHometmp.log"
 		local watchdog_file = "/var/run/AdGuardHomesyslog"
 		local pid_file = "/var/run/AdGuardHome_getsyslog.pid"
 		local syslog_script = "/usr/share/AdGuardHome/getsyslog.sh"
 
-		-- Check if watchdog file exists and if the process is running
 		local pid = nil
 		local ok_read_pid, pid_content = check_pcall(fs.readfile, pid_file)
 		if ok_read_pid and pid_content then pid = tonumber(pid_content) end
@@ -142,17 +127,14 @@ function get_log()
 		end
 
 		if not process_running then
-			-- Start the syslog script in the background if not running
 			check_pcall(sys.exec_background, string.format("(%s &)", util.shellquote(syslog_script)))
-			sys.exec("sleep 1") -- Give it a moment to start
+			sys.exec("sleep 1")
 		end
-		-- Touch/update the watchdog file
 		check_pcall(fs.writefile, watchdog_file, "1")
 	else
 		logfile_path = logfile_uci
 	end
 
-	-- Check if the target log file exists
 	local ok_access, _ = check_pcall(fs.access, logfile_path)
 	if not ok_access then
 		http.prepare_content("text/plain; charset=utf-8")
@@ -164,7 +146,6 @@ function get_log()
 		return
 	end
 
-	-- Read log content from the last position
 	http.prepare_content("text/plain; charset=utf-8")
 	local fdp = 0
 	local ok_reload, _ = check_pcall(fs.access, "/var/run/lucilogreload")
@@ -180,7 +161,6 @@ function get_log()
 	if ok_open then
 		local ok_seek1, seek_res1 = check_pcall(f.seek, f, "set", fdp)
 		if ok_seek1 then
-			-- Read up to 2MB
 			local ok_read, read_content = check_pcall(f.read, f, 2048000)
 			if ok_read then content = read_content or "" end
 
@@ -189,11 +169,10 @@ function get_log()
 				check_pcall(fs.writefile, "/var/run/lucilogpos", tostring(current_pos))
 			end
 		end
-		check_pcall(f.close, f) -- Ensure file is closed
+		check_pcall(f.close, f)
 		http.write(content)
 	else
 		http.write("-- Error opening log file: " .. tostring(err_open) .. " --\n")
-		-- Reset position?
 		check_pcall(fs.writefile, "/var/run/lucilogpos", "0")
 	end
 end
@@ -201,20 +180,13 @@ end
 function do_dellog()
 	local logfile = uci:get("AdGuardHome", "AdGuardHome", "logfile")
 	if logfile and logfile ~= "" and logfile ~= "syslog" then
-		-- Safely truncate the file
-		local ok_write, err_write = check_pcall(fs.writefile, logfile, "")
-		if not ok_write then
-			-- Handle error, maybe respond differently?
-		end
+		check_pcall(fs.writefile, logfile, "")
 	elseif logfile == "syslog" then
-		-- If syslog, clear the temporary file instead
-		local ok_write, err_write = check_pcall(fs.writefile, "/tmp/AdGuardHometmp.log", "")
-		-- Also reset the log position
+		check_pcall(fs.writefile, "/tmp/AdGuardHometmp.log", "")
 		check_pcall(fs.writefile, "/var/run/lucilogpos", "0")
 	end
-	-- Send empty response regardless of success/failure?
 	http.prepare_content("application/json")
-	-- 修复：返回空 JSON 对象而非空字符串
+	-- 修复：返回空 JSON 对象 '{}'
 	http.write('{}')
 end
 
@@ -231,7 +203,7 @@ function check_update()
 	if ok_open then
 		local ok_seek1, _ = check_pcall(f.seek, f, "set", fdp)
 		if ok_seek1 then
-			local ok_read, read_content = check_pcall(f.read, f, 2048000) -- Read up to 2MB
+			local ok_read, read_content = check_pcall(f.read, f, 2048000)
 			if ok_read then content = read_content or "" end
 
 			local ok_seek2, current_pos = check_pcall(f.seek, f)
@@ -240,16 +212,12 @@ function check_update()
 			end
 		end
 		check_pcall(f.close, f)
-	else
-		-- Log file might not exist yet, don't write error to user
-		-- content remains ""
 	end
 
 	local ok_access_run, _ = check_pcall(fs.access, "/var/run/update_core")
 	if ok_access_run then
 		http.write(content)
 	else
-		-- Append null byte to signal completion to frontend poller
 		http.write(content .. "\0")
 	end
 end

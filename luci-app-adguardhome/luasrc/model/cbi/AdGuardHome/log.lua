@@ -1,28 +1,23 @@
-local fs = require("nixio.fs")
-local uci = require("luci.model.uci").cursor()
-local util = require("luci.util") -- For pcall wrapper if needed
+local m, s, o
+local fs = require "nixio.fs"
+local uci = require "luci.model.uci".cursor()
+local sys = require "luci.sys"
+local json = require "luci.jsonc"
+-- 修复：移除 require "luci"，引入 dispatcher
+local dispatcher = require "luci.dispatcher"
 
-local f, t
+m = SimpleForm("AdGuardHome", translate("Log"))
+m.submit = false
+m.reset = false
 
-f = SimpleForm("logview")
-f.reset = false
-f.submit = false
+-- Log View
+s = m:section(SimpleSection)
+s.template = "AdGuardHome/log"
 
-t = f:field(TextValue, "conf")
-t.rmempty = true
-t.rows = 20
-t.template = "AdGuardHome/log"
-t.readonly = "readonly"
+-- We can pass some variables to the template if needed
+-- For example, the URL to fetch logs
+-- 修复：使用 dispatcher.build_url
+s.poll_url = dispatcher.build_url("admin", "services", "AdGuardHome", "getlog")
+s.del_url = dispatcher.build_url("admin", "services", "AdGuardHome", "dodellog")
 
-local logfile = uci:get("AdGuardHome", "AdGuardHome", "logfile") or ""
-t.timereplace = (logfile ~= "syslog" and logfile ~= "")
-t.pollcheck = (logfile ~= "")
-
--- Safely write the file using pcall
-local ok, err = pcall(fs.writefile, "/var/run/lucilogreload", "")
-if not ok then
-	-- Optionally log the error, but don't prevent page load
-	-- print("Error writing /var/run/lucilogreload: " .. tostring(err))
-end
-
-return f
+return m
