@@ -17,7 +17,7 @@ LUCI_TITLE:=LuCI app for AdGuard Home
 # - luci-lib-jsonc: Required for JSON parsing in Lua backend
 # - uclient-fetch: Lightweight downloader (standard in OpenWrt)
 # - xz: Required for UPX decompression
-LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +xz +adguardhome
+LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +xz
 LUCI_PKGARCH:=all
 LUCI_DESCRIPTION:=LuCI support for AdGuard Home
 
