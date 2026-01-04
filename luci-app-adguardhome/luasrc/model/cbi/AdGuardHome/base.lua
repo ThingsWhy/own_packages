@@ -1,9 +1,10 @@
-local luci = require("luci")
 local sys = require("luci.sys")
 local util = require("luci.util")
 local fs = require("nixio.fs")
 local uci = require("luci.model.uci").cursor()
 local http = require("luci.http")
+-- 修复点1：引入 dispatcher 模块，替代 require("luci")
+local dispatcher = require("luci.dispatcher")
 
 local m, s, o
 
@@ -89,7 +90,8 @@ o = s:option(Button, "gfwadd", translate("Add gfwlist"))
 o.inputtitle = translate("Add")
 o.write = function()
     sys.call("sh /usr/share/AdGuardHome/gfw2adg.sh >/dev/null 2>&1")
-    http.redirect(luci.dispatcher.build_url("admin", "services", "AdGuardHome"))
+    -- 修复点2：使用 dispatcher 变量调用 build_url
+    http.redirect(dispatcher.build_url("admin", "services", "AdGuardHome"))
 end
 
 o = s:option(Value, "gfwupstream", translate("Gfwlist upstream dns server"))
