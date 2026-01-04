@@ -1,27 +1,49 @@
-<script type="text/javascript">//<![CDATA[
-XHR.poll(3, '<%=url([[admin]], [[services]], [[AdGuardHome]], [[status]])%>', null,
-	function(x, data) {
-		var tb = document.getElementById('AdGuardHome_status');
-		if (data && tb) {
-			if (data.running) {
-				tb.innerHTML = '<em><b><font color=green>AdGuardHome <%:RUNNING%></font></b></em>';
-			} else {
-				tb.innerHTML = '<em><b><font color=red>AdGuardHome <%:NOT RUNNING%></font></b></em>';
-			}
-			if (data.redirect)
-			{
-				tb.innerHTML+='<em><b><font color=green><%:Redirected%></font></b></em>'
-			} else {
-				tb.innerHTML+='<em><b><font color=red><%:Not redirect%></font></b></em>'	
-			}
-		}
-	}
-);
-//]]>
-</script>
-<style>.mar-10 {margin-left: 50px; margin-right: 10px;}</style>
+<style>
+	.adh-status-icon { margin-right: 5px; vertical-align: middle; }
+	.adh-running { color: #28a745; font-weight: bold; }
+	.adh-stopped { color: #dc3545; font-weight: bold; }
+	.adh-redirect { color: #17a2b8; }
+</style>
+
 <fieldset class="cbi-section">
-	<p id="AdGuardHome_status">
-		<em><%:Collecting data...%></em>
-	</p>
+	<div id="adh_status_container">
+		<span class="adh-status-icon">●</span>
+		<span id="adh_status_text"><%:Collecting data...%></span>
+	</div>
 </fieldset>
+
+<script type="text/javascript">//<![CDATA[
+	(function() {
+		var statusText = document.getElementById('adh_status_text');
+		var statusContainer = document.getElementById('adh_status_container');
+		
+		L.Request.poll(3, '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "status")%>', null,
+			function(xhr, data) {
+				if (!data) return;
+
+				var html = '';
+				
+				// 运行状态
+				if (data.running) {
+					html += '<span class="adh-running"><%:RUNNING%></span>';
+				} else {
+					html += '<span class="adh-stopped"><%:NOT RUNNING%></span>';
+				}
+
+				// 版本信息
+				if (data.version) {
+					html += ' | <%:Version%>: <b>' + data.version + '</b>';
+				}
+
+				// 重定向状态
+				if (data.redirect) {
+					html += ' | <span class="adh-redirect"><%:Redirect Enabled%></span>';
+				} else {
+					html += ' | <span style="color:#999"><%:No Redirect%></span>';
+				}
+
+				statusText.innerHTML = html;
+			}
+		);
+	})();
+//]]></script>

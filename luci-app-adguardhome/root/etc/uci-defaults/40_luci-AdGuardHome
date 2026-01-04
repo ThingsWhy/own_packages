@@ -1,25 +1,36 @@
 #!/bin/sh
 
-# Setup ucitrack for configuration changes
-uci -q batch <<-EOF >/dev/null 2>&1
+uci -q batch <<-EOF >/dev/null
 	delete ucitrack.@AdGuardHome[-1]
 	add ucitrack AdGuardHome
 	set ucitrack.@AdGuardHome[-1].init=AdGuardHome
 	commit ucitrack
-	# Clean up old test flag if present
-	delete AdGuardHome.AdGuardHome.ucitracktest
-	commit AdGuardHome
 EOF
 
-# Check if service is enabled in config and trigger initial start/reload
-enable=$(uci -q get AdGuardHome.AdGuardHome.enabled)
-if [ "$enable" = "1" ]; then
-    # Use reload if already running (e.g., during upgrade), otherwise start
-    # Using 'restart' might be simpler and safer during initial setup
-    /etc/init.d/AdGuardHome restart >/dev/null 2>&1
+# 注册 Firewall Include
+# 检查是否已存在
+if ! uci -q get firewall.adguardhome_include >/dev/null; then
+	uci -q batch <<-EOF
+		set firewall.adguardhome_include=include
+		set firewall.adguardhome_include.type='script'
+		set firewall.adguardhome_include.path='/usr/share/AdGuardHome/firewall.include'
+		set firewall.adguardhome_include.family='any'
+		set firewall.adguardhome_include.reload='1'
+		commit firewall
+	EOF
 fi
 
-# Clear LuCI cache
-rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*
+# 清理旧版本脚本可能残留的动态防火墙规则
+# 旧版脚本使用 name='AdGuard Home DNS'
+old_rules=$(uci show firewall | grep "name='AdGuard Home DNS'" | cut -d. -f2)
+for rule in $old_rules; do
+	uci -q delete firewall."$rule"
+done
+[ -n "$old_rules" ] && uci commit firewall
+
+# 清理旧的计划任务 (tailto.sh 等)
+sed -i '/tailto.sh/d' /etc/crontabs/root 2>/dev/null
+sed -i '/waitnet.sh/d' /etc/crontabs/root 2>/dev/null
+sed -i '/watchconfig.sh/d' /etc/crontabs/root 2>/dev/null
 
 exit 0

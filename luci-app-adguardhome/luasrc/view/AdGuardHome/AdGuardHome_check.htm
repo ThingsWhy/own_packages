@@ -1,148 +1,99 @@
 <%+cbi/valueheader%>
-<%
-local fs = require "nixio.fs"
-local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
-%>
-<input type="button" class="cbi-button cbi-button-apply" id="apply_update_button" value="<%:Update core version%>" onclick="return apply_update()" />
-<input type="button" class="cbi-button cbi-button-apply" id="apply_forceupdate_button" value="<%:Force update%>" onclick="return apply_forceupdate()" style="display:none" />
-<% if self.showfastconfig then %>
-<input type="button" class="cbi-button cbi-button-apply" id="to_configpage" value="<%:Fast config%>" onclick="location.href='<%=luci.dispatcher.build_url('admin', 'services', 'AdGuardHome', 'manual')%>'" />
-<% end %>
-<div id="logview" style="display:none">
-	<input type="checkbox" id="reversetag" value="reverse" onclick="return reverselog()" style="vertical-align:middle;height: auto;"><%:reverse%></input>
-	<textarea id="logtextarea" class="cbi-input-textarea" style="width: 100%;display:block;" data-update="change" rows="5" cols="60" readonly="readonly"></textarea>
+
+<div class="cbi-value-field">
+	<input class="cbi-button cbi-button-apply" type="button" id="btn_check_update" value="<%:Check Update%>" onclick="handleCheckUpdate(this)" />
+	<input class="cbi-button cbi-button-save" type="button" id="btn_do_update" value="<%:Update Core%>" style="display:none" onclick="handleDoUpdate(this)" />
+	<input class="cbi-button cbi-button-remove" type="button" id="btn_force_update" value="<%:Force Update%>" style="display:none" onclick="handleDoUpdate(this, true)" />
+	
+	<div id="update_status_msg" style="display:inline-block; margin-left: 10px; color: #666;"></div>
+	
+	<div id="update_log_container" style="display:none; margin-top: 10px;">
+		<textarea id="update_log_area" class="cbi-input-textarea" style="width: 100%; height: 200px; font-family: monospace; font-size: 12px; background: #333; color: #fff;" readonly></textarea>
+	</div>
 </div>
+
 <script type="text/javascript">//<![CDATA[
-	var updatebtn = document.getElementById('apply_update_button');
-	var forceupdatebtn = document.getElementById('apply_forceupdate_button');
-	var logView = document.getElementById('logview');
-	var logTextarea = document.getElementById('logtextarea');
-	var isLogReverse = false;
-	var pollActive = false; // Flag to track polling state
+	var checkUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "check_update")%>';
+	var updateUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "do_update")%>';
+	var pollLogUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "poll_log")%>';
+	
+	var logPos = 0;
+	var pollTimer = null;
 
-	// URLs for LuCI JS API
-	var checkUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "check")%>';
-	var updateUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "doupdate")%>';
+	function handleCheckUpdate(btn) {
+		btn.disabled = true;
+		btn.value = '<%:Checking...%>';
+		document.getElementById('update_status_msg').innerHTML = '';
+		document.getElementById('btn_do_update').style.display = 'none';
+		document.getElementById('btn_force_update').style.display = 'none';
 
-	function reverselog() {
-		var lines = logTextarea.value.split('\n');
-		logTextarea.value = lines.reverse().join('\n');
-		isLogReverse = !isLogReverse;
-		// Maintain scroll position after reversing (optional)
-		if (isLogReverse) {
-			logTextarea.scrollTop = 0;
-		} else {
-			logTextarea.scrollTop = logTextarea.scrollHeight;
-		}
-		return false; // Prevent default checkbox behavior if needed
-	}
-
-	function appendLog(text) {
-		if (isLogReverse) {
-			logTextarea.value = text + logTextarea.value;
-			logTextarea.scrollTop = 0; // Scroll to top when reversed
-		} else {
-			logTextarea.value += text;
-			logTextarea.scrollTop = logTextarea.scrollHeight; // Auto-scroll to bottom
-		}
-	}
-
-	function handlePollUpdate(response) {
-		// Backend should send empty string or specific marker while running,
-		// and stop responding or return non-200 to stop polling.
-		// The original code checked for \u0000. L.Poll stops on non-200 or timeout.
-		// We'll assume backend stops responding when done.
-		if (response && response.trim() !== "") {
-			appendLog(response);
-		}
-	}
-
-	function handlePollError(error) {
-		console.error("Polling error:", error);
-		appendLog("\n<%:Polling error. Please check network or backend.%>");
-		stopPolling(); // Attempt to stop polling on error
-	}
-
-	function handlePollEnd() {
-		console.log("Polling finished or timed out.");
-		pollActive = false;
-		if (updatebtn) { // Check if element exists
-			updatebtn.disabled = false;
-			updatebtn.value = '<%:Updated%>'; // Or reflect actual status from last message
-		}
-		if (forceupdatebtn) {
-			forceupdatebtn.style.display = "inline"; // Keep force button visible? Or hide?
-		}
-		// You might want a final status message here
-		// appendLog("\n<%:Update process finished.%>");
-	}
-
-	function startPolling() {
-		if (pollActive) return; // Prevent multiple pollers
-		logView.style.display = "block";
-		pollActive = true;
-		L.Poll.add(checkUrl, 3, handlePollUpdate) // Check every 3 seconds
-			.catch(handlePollError) // Catch errors during polling requests
-			.finally(handlePollEnd); // Called when polling stops (success or error)
-	}
-
-	function stopPolling() {
-		// L.Poll.remove might be needed if you want explicit stop,
-		// but typically it stops when the URL becomes unavailable or returns error.
-		L.Poll.remove(checkUrl); // Attempt to remove poller
-		pollActive = false;
-		handlePollEnd(); // Manually call end handler if needed
-	}
-
-	function apply_update_common(force) {
-		var params = force ? { force: 1 } : null;
-		if (updatebtn) { // Check if element exists
-			updatebtn.disabled = true;
-			updatebtn.value = '<%:Check...%>';
-		}
-		if (forceupdatebtn) { // Check if element exists
-			forceupdatebtn.style.display = "inline";
-		}
-
-		L.Request.get(updateUrl, params)
-			.then(function(response) {
-				// Request sent successfully, start polling for logs
-				logTextarea.value = ""; // Clear previous logs
-				appendLog("<%:Update initiated...%>\n");
-				startPolling();
-			})
-			.catch(function(error) {
-				console.error("Update initiation error:", error);
-				appendLog("\n<%:Error initiating update: %>" + error.statusText);
-				if (updatebtn) { // Check if element exists
-					updatebtn.disabled = false;
-					updatebtn.value = '<%:Update core version%>';
+		L.get(checkUrl).then(function(xhr) {
+			btn.disabled = false;
+			btn.value = '<%:Check Update%>';
+			
+			var data = xhr.json();
+			if (!data) {
+				alert('<%:Error: No response%>');
+				return;
+			}
+			
+			if (data.error) {
+				document.getElementById('update_status_msg').innerHTML = '<span style="color:red">' + data.error + '</span>';
+				// 即使出错也允许强制更新
+				document.getElementById('btn_force_update').style.display = 'inline-block';
+			} else {
+				var msg = '<%:Current%>: <b>' + data.current + '</b>, <%:Latest%>: <b>' + data.latest + '</b>';
+				if (data.updatable) {
+					msg += ' <span style="color:green; font-weight:bold"><%:Update Available!%></span>';
+					document.getElementById('btn_do_update').style.display = 'inline-block';
+				} else {
+					msg += ' <span><%:Up to date%></span>';
+					document.getElementById('btn_force_update').style.display = 'inline-block';
 				}
-			});
+				document.getElementById('update_status_msg').innerHTML = msg;
+			}
+		});
 	}
 
-	function apply_update() {
-		apply_update_common(false);
-		return false; // Prevent default button action
+	function handleDoUpdate(btn, force) {
+		if (!confirm('<%:Are you sure to update core? Service will restart.%>')) return;
+		
+		btn.disabled = true;
+		var originalVal = btn.value;
+		
+		// Reset UI
+		document.getElementById('update_log_container').style.display = 'block';
+		var logArea = document.getElementById('update_log_area');
+		logArea.value = '<%:Initiating update...%>\n';
+		logPos = 0;
+
+		// Trigger Update
+		L.get(updateUrl, { force: force ? '1' : '0' }).then(function(xhr) {
+			// Start polling log
+			pollTimer = window.setInterval(pollLog, 1000);
+		});
 	}
 
-	function apply_forceupdate() {
-		apply_update_common(true);
-		return false; // Prevent default button action
+	function pollLog() {
+		L.get(pollLogUrl, { pos: logPos }).then(function(xhr) {
+			var data = xhr.json();
+			if (data) {
+				var logArea = document.getElementById('update_log_area');
+				if (data.log) {
+					logArea.value += data.log;
+					logArea.scrollTop = logArea.scrollHeight; // Auto scroll
+				}
+				logPos = data.pos;
+				
+				if (data.done) {
+					window.clearInterval(pollTimer);
+					logArea.value += '\n<%:Process finished.%>';
+					// Re-enable buttons? Maybe reload page is better
+					document.getElementById('btn_check_update').disabled = false;
+				}
+			}
+		});
 	}
+//]]></script>
 
-	// Initial check on page load
-	<% if fs.access("/var/run/update_core") then %>
-		if (updatebtn) updatebtn.disabled = true;
-		if (updatebtn) updatebtn.value = '<%:Check...%>';
-		if (forceupdatebtn) forceupdatebtn.style.display = "inline";
-		startPolling();
-	<% elseif fs.access("/var/run/update_core_error") then %>
-		// If there was an error previously, show logs but don't disable button?
-		if (forceupdatebtn) forceupdatebtn.style.display = "inline";
-		startPolling(); // Show the logs from the failed attempt
-	<% end %>
-
-//]]>
-</script>
 <%+cbi/valuefooter%>
