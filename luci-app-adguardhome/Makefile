@@ -1,49 +1,37 @@
-# Copyright (C) 2018-2019 Lienol
-# Copyright (C) 2024 rufengsuixing
-#
-# This is free software, licensed under the Apache License, Version 2.0 .
-#
+# Copyright (C) 2018-2024 Lienol <https://github.com/Lienol>
+# Copyright (C) 2024 rufengsuixing <https://github.com/rufengsuixing>
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-adguardhome
+PKG_VERSION:=1.8
+PKG_RELEASE:=1
+
 PKG_MAINTAINER:=<https://github.com/rufengsuixing/luci-app-adguardhome>
+PKG_LICENSE:=Apache-2.0
 
 LUCI_TITLE:=LuCI app for AdGuard Home
-# Updated Dependencies: Flexible downloader, add xz for upx, core dependency
-LUCI_DEPENDS:=+(wget||wget-ssl||curl) +xz +adguardhome
+# 依赖：curl(下载), ca-bundle(HTTPS), xz-utils(UPX), luci-compat(CBI兼容)
+LUCI_DEPENDS:=+curl +ca-bundle +xz-utils +luci-compat
 LUCI_PKGARCH:=all
 LUCI_DESCRIPTION:=LuCI support for AdGuard Home
 
+# 确保配置文件和数据目录在固件升级时保留
 define Package/luci-app-adguardhome/conffiles
-/usr/share/AdGuardHome/links.txt
 /etc/config/AdGuardHome
+/etc/AdGuardHome.yaml
+/etc/AdGuardHome/
 endef
 
-define Package/luci-app-adguardhome/postinst
-#!/bin/sh
-# Service enable logic remains here, reload moved to uci-defaults
-if [ -z "$${IPKG_INSTROOT}" ]; then
-    /etc/init.d/AdGuardHome enable >/dev/null 2>&1
-fi
-# Clear cache remains
-rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*
-exit 0
-endef
-
-define Package/luci-app-adguardhome/prerm
-#!/bin/sh
-if [ -z "$${IPKG_INSTROOT}" ]; then
-     # Stop and disable service
-     /etc/init.d/AdGuardHome disable >/dev/null 2>&1
-     /etc/init.d/AdGuardHome stop >/dev/null 2>&1
-     # Clean up ucitrack entry
-     uci -q batch <<-EOF >/dev/null 2>&1
-        delete ucitrack.@AdGuardHome[-1]
-        commit ucitrack
-EOF
-fi
-exit 0
+# 显式定义安装过程，确保脚本拥有执行权限
+define Package/luci-app-adguardhome/install
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci
+	$(CP) ./luasrc/* $(1)/usr/lib/lua/luci/
+	$(INSTALL_DIR) $(1)/
+	$(CP) ./root/* $(1)/
+	# 显式赋予脚本执行权限
+	$(INSTALL_DIR) $(1)/usr/share/AdGuardHome
+	$(INSTALL_BIN) ./root/usr/share/AdGuardHome/*.sh $(1)/usr/share/AdGuardHome/
 endef
 
 include $(TOPDIR)/feeds/luci/luci.mk

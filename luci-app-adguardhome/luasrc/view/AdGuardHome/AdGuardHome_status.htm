@@ -1,22 +1,27 @@
 <script type="text/javascript">//<![CDATA[
-XHR.poll(3, '<%=url([[admin]], [[services]], [[AdGuardHome]], [[status]])%>', null,
-	function(x, data) {
-		var tb = document.getElementById('AdGuardHome_status');
-		if (data && tb) {
-			if (data.running) {
-				tb.innerHTML = '<em><b><font color=green>AdGuardHome <%:RUNNING%></font></b></em>';
-			} else {
-				tb.innerHTML = '<em><b><font color=red>AdGuardHome <%:NOT RUNNING%></font></b></em>';
-			}
-			if (data.redirect)
-			{
-				tb.innerHTML+='<em><b><font color=green><%:Redirected%></font></b></em>'
-			} else {
-				tb.innerHTML+='<em><b><font color=red><%:Not redirect%></font></b></em>'	
-			}
-		}
-	}
-);
+	// 使用 L.Poll 替代过时的 XHR.poll，适配现代 LuCI 环境
+	L.Poll.add(function() {
+		return L.Request.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[status]])%>')
+			.then(function(res) {
+				if (!res.ok) return;
+				var data = res.json();
+				var tb = document.getElementById('AdGuardHome_status');
+				if (data && tb) {
+					if (data.running) {
+						tb.innerHTML = '<em><b><font color=green>AdGuardHome <%:RUNNING%></font></b></em>';
+					} else {
+						tb.innerHTML = '<em><b><font color=red>AdGuardHome <%:NOT RUNNING%></font></b></em>';
+					}
+					
+					// 增加空格使显示更美观
+					if (data.redirect) {
+						tb.innerHTML += ' <em><b><font color=green><%:Redirected%></font></b></em>';
+					} else {
+						tb.innerHTML += ' <em><b><font color=red><%:Not redirect%></font></b></em>';
+					}
+				}
+			});
+	}, 3); // 3秒轮询一次
 //]]>
 </script>
 <style>.mar-10 {margin-left: 50px; margin-right: 10px;}</style>
