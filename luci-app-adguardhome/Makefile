@@ -19,7 +19,7 @@ LUCI_TITLE:=LuCI app for AdGuard Home
 #   (However, keeping +adguardhome is recommended if the core package is available in your feeds)
 # - luci-lib-jsonc: Required for backend logic
 # - uclient-fetch: Required for download logic
-LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +adguardhome
+LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +upx +adguardhome
 LUCI_PKGARCH:=all
 LUCI_DESCRIPTION:=LuCI support for AdGuard Home
 
