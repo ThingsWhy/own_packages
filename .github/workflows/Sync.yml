@@ -9,101 +9,140 @@ jobs:
   Get_repo:
     runs-on: ubuntu-latest
     
-    # --------------------------------------------------------
-    # 修复 1: 增加 'actions: write' 权限
     permissions:
-      contents: write  # 用于 git push
-      actions: write   # 用于 delete-workflow-runs
-    # --------------------------------------------------------
+      contents: write
+      actions: write
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # --------------------------------------------------------
-    # 修复 2B: 重写此步骤以避免名称冲突
-    - name: Get Source Packages into Temp Dir
+    - name: Get Source Packages
       id: get_source
       run: |
-        set -e # 任何命令失败立即退出
-        TEMP_PACKAGE_DIR="/home/runner/temp_packages"
-        mkdir -p "$TEMP_PACKAGE_DIR"
-        cd "$TEMP_PACKAGE_DIR"
-        echo "Working directory: $PWD"
+        # 创建临时构建目录
+        TEMP_DIR=$(mktemp -d)
+        echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
+        echo "Using temp directory: $TEMP_DIR"
 
-        echo "Cloning luci-app-adguardhome..."
-        git clone --depth=1 https://github.com/ThingsWhy/luci-app-adguardhome.git luci-app-adguardhome
-        rm -rf luci-app-adguardhome/.git
+        # 定义通用克隆函数
+        # 参数1: 仓库URL
+        # 参数2: 目标文件夹名
+        # 参数3: 具体的处理逻辑 (作为字符串传入或并在后台运行)
+        
+        # 为了提高速度，我们将所有克隆任务放入后台并行运行
+        pids=""
 
-        echo "Cloning nas-packages (for ddnsto)..."
-        git clone --depth=1 https://github.com/linkease/nas-packages.git _nas-packages
-        cp -R _nas-packages/network/services/ddnsto ./ddnsto
+        # -------------------------------------------------------------------
+        # 任务 1: luci-app-adguardhome (来自当前组织/用户或其他源)
+        (
+          echo "::group::Downloading luci-app-adguardhome"
+          git clone --depth=1 --single-branch https://github.com/ThingsWhy/luci-app-adguardhome.git "$TEMP_DIR/luci-app-adguardhome"
+          rm -rf "$TEMP_DIR/luci-app-adguardhome/.git"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Cloning nas-packages-luci (for luci-app-ddnsto)..."
-        git clone --depth=1 https://github.com/linkease/nas-packages-luci.git _nas-packages-luci
-        cp -R _nas-packages-luci/luci/luci-app-ddnsto ./luci-app-ddnsto
+        # -------------------------------------------------------------------
+        # 任务 2: ddnsto (来自 nas-packages)
+        (
+          echo "::group::Downloading ddnsto"
+          git clone --depth=1 --single-branch https://github.com/linkease/nas-packages.git "$TEMP_DIR/_nas-packages"
+          mkdir -p "$TEMP_DIR/ddnsto"
+          cp -R "$TEMP_DIR/_nas-packages/network/services/ddnsto/." "$TEMP_DIR/ddnsto/"
+          rm -rf "$TEMP_DIR/_nas-packages"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Cloning luci-app-lucky..."
-        git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git _luci-app-lucky
-        cp -R _luci-app-lucky/luci-app-lucky ./luci-app-lucky
-        cp -R _luci-app-lucky/lucky ./lucky
+        # -------------------------------------------------------------------
+        # 任务 3: luci-app-ddnsto (来自 nas-packages-luci)
+        (
+          echo "::group::Downloading luci-app-ddnsto"
+          git clone --depth=1 --single-branch https://github.com/linkease/nas-packages-luci.git "$TEMP_DIR/_nas-packages-luci"
+          mkdir -p "$TEMP_DIR/luci-app-ddnsto"
+          cp -R "$TEMP_DIR/_nas-packages-luci/luci/luci-app-ddnsto/." "$TEMP_DIR/luci-app-ddnsto/"
+          rm -rf "$TEMP_DIR/_nas-packages-luci"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Cloning luci-app-mosdns..."
-        git clone --depth=1 https://github.com/sbwml/luci-app-mosdns.git _luci-app-mosdns
-        cp -R _luci-app-mosdns/luci-app-mosdns ./luci-app-mosdns
-        cp -R _luci-app-mosdns/v2dat ./v2dat
+        # -------------------------------------------------------------------
+        # 任务 4: Lucky & luci-app-lucky
+        (
+          echo "::group::Downloading Lucky"
+          git clone --depth=1 --single-branch https://github.com/gdy666/luci-app-lucky.git "$TEMP_DIR/_luci-app-lucky"
+          cp -R "$TEMP_DIR/_luci-app-lucky/luci-app-lucky" "$TEMP_DIR/"
+          cp -R "$TEMP_DIR/_luci-app-lucky/lucky" "$TEMP_DIR/"
+          rm -rf "$TEMP_DIR/_luci-app-lucky"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Cloning aliyundrive-webdav..."
-        git clone --depth=1 https://github.com/messense/aliyundrive-webdav.git _aliyundrive-webdav
-        cp -R _aliyundrive-webdav/openwrt/aliyundrive-webdav ./aliyundrive-webdav
-        cp -R _aliyundrive-webdav/openwrt/luci-app-aliyundrive-webdav ./luci-app-aliyundrive-webdav
+        # -------------------------------------------------------------------
+        # 任务 5: MosDNS & v2dat
+        (
+          echo "::group::Downloading MosDNS"
+          git clone --depth=1 --single-branch https://github.com/sbwml/luci-app-mosdns.git "$TEMP_DIR/_luci-app-mosdns"
+          cp -R "$TEMP_DIR/_luci-app-mosdns/luci-app-mosdns" "$TEMP_DIR/"
+          cp -R "$TEMP_DIR/_luci-app-mosdns/v2dat" "$TEMP_DIR/"
+          rm -rf "$TEMP_DIR/_luci-app-mosdns"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Cleaning up cloned repos..."
-        rm -rf _* # 删除所有带下划线的临时仓库目录
+        # -------------------------------------------------------------------
+        # 任务 6: Aliyundrive-webdav
+        (
+          echo "::group::Downloading Aliyundrive-webdav"
+          git clone --depth=1 --single-branch https://github.com/messense/aliyundrive-webdav.git "$TEMP_DIR/_aliyundrive-webdav"
+          cp -R "$TEMP_DIR/_aliyundrive-webdav/openwrt/aliyundrive-webdav" "$TEMP_DIR/"
+          cp -R "$TEMP_DIR/_aliyundrive-webdav/openwrt/luci-app-aliyundrive-webdav" "$TEMP_DIR/"
+          rm -rf "$TEMP_DIR/_aliyundrive-webdav"
+          echo "::endgroup::"
+        ) &
+        pids="$pids $!"
 
-        echo "Source packages prepared successfully."
+        # 等待所有后台任务完成
+        for pid in $pids; do
+          wait $pid || exit 1
+        done
+
+        echo "All packages downloaded successfully."
+        ls -F "$TEMP_DIR"
       shell: bash
 
     - name: Sync package folder to upstream repo
-      if: success() # 仅在上一步成功时运行
       env:
-        PACKAGE_SOURCE: /home/runner/temp_packages/
+        # 使用上一步生成的 TEMP_DIR 环境变量
+        PACKAGE_SOURCE: ${{ env.TEMP_DIR }}
       run: |
-        cd ${GITHUB_WORKSPACE}
-        
+        # 配置 Git
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config user.name "github-actions[bot]"
 
-        echo "Syncing from $PACKAGE_SOURCE to ${GITHUB_WORKSPACE}/"
+        echo "Syncing from $PACKAGE_SOURCE/ to ${GITHUB_WORKSPACE}/"
         
-        # --------------------------------------------------------
-        # 修复 2A: 增加 --exclude=".github"
+        # 使用 rsync 同步，增加了一些通用的排除项以保持整洁
         rsync -rcl --delete \
           --exclude=".git*" \
           --exclude="README.md" \
           --exclude=".github" \
-          "$PACKAGE_SOURCE" ./
-        # --------------------------------------------------------
+          --exclude="LICENSE" \
+          --exclude=".gitignore" \
+          "$PACKAGE_SOURCE/" ./
 
-        # 检查是否有实际变更
+        # 提交更改
         if ! git diff --quiet || ! git diff --staged --quiet; then
-           echo "Changes detected by git, committing and pushing..."
+           echo "Changes detected."
            git add .
-           if ! git diff --staged --quiet; then
-             git commit -m "Sync package folder from Actions - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-             git push origin main
-           else
-             echo "No staged changes to commit after git add."
-           fi
+           git commit -m "Sync packages: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+           git push origin main
         else
-           echo "No changes detected by git status after rsync."
+           echo "No changes detected."
         fi
 
-        # 清理临时目录
-        rm -rf "$PACKAGE_SOURCE"
-
     - name: Delete old workflow runs
-      # 'if: always()' 确保即使同步失败，也会执行清理
       if: always() 
       uses: Mattraks/delete-workflow-runs@v2
       with:
