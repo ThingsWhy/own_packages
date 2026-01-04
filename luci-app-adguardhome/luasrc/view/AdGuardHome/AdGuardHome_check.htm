@@ -1,7 +1,10 @@
+{
+type: uploaded file
+fileName: thingswhy/luci-app-adguardhome/luci-app-adguardhome-31fc2723e209fbdbdc21cc9572c42548fae1474b/luasrc/view/AdGuardHome/AdGuardHome_check.htm
+fullContent:
 <%+cbi/valueheader%>
 <%
 local fs = require "nixio.fs"
-local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 %>
 <input type="button" class="cbi-button cbi-button-apply" id="apply_update_button" value="<%:Update core version%>" onclick="return apply_update()" />
 <input type="button" class="cbi-button cbi-button-apply" id="apply_forceupdate_button" value="<%:Force update%>" onclick="return apply_forceupdate()" style="display:none" />
@@ -9,7 +12,7 @@ local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 <input type="button" class="cbi-button cbi-button-apply" id="to_configpage" value="<%:Fast config%>" onclick="location.href='<%=luci.dispatcher.build_url('admin', 'services', 'AdGuardHome', 'manual')%>'" />
 <% end %>
 <div id="logview" style="display:none">
-	<input type="checkbox" id="reversetag" value="reverse" onclick="return reverselog()" style="vertical-align:middle;height: auto;"><%:reverse%></input>
+	<input type="checkbox" id="reversetag" value="reverse" onclick="reverselog()" style="vertical-align:middle;height: auto;"><%:reverse%></input>
 	<textarea id="logtextarea" class="cbi-input-textarea" style="width: 100%;display:block;" data-update="change" rows="5" cols="60" readonly="readonly"></textarea>
 </div>
 <script type="text/javascript">//<![CDATA[
@@ -18,7 +21,7 @@ local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 	var logView = document.getElementById('logview');
 	var logTextarea = document.getElementById('logtextarea');
 	var isLogReverse = false;
-	var pollActive = false; // Flag to track polling state
+	var pollActive = false;
 
 	// URLs for LuCI JS API
 	var checkUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "check")%>';
@@ -28,30 +31,25 @@ local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 		var lines = logTextarea.value.split('\n');
 		logTextarea.value = lines.reverse().join('\n');
 		isLogReverse = !isLogReverse;
-		// Maintain scroll position after reversing (optional)
 		if (isLogReverse) {
 			logTextarea.scrollTop = 0;
 		} else {
 			logTextarea.scrollTop = logTextarea.scrollHeight;
 		}
-		return false; // Prevent default checkbox behavior if needed
+		return true; 
 	}
 
 	function appendLog(text) {
 		if (isLogReverse) {
 			logTextarea.value = text + logTextarea.value;
-			logTextarea.scrollTop = 0; // Scroll to top when reversed
+			logTextarea.scrollTop = 0;
 		} else {
 			logTextarea.value += text;
-			logTextarea.scrollTop = logTextarea.scrollHeight; // Auto-scroll to bottom
+			logTextarea.scrollTop = logTextarea.scrollHeight;
 		}
 	}
 
 	function handlePollUpdate(response) {
-		// Backend should send empty string or specific marker while running,
-		// and stop responding or return non-200 to stop polling.
-		// The original code checked for \u0000. L.Poll stops on non-200 or timeout.
-		// We'll assume backend stops responding when done.
 		if (response && response.trim() !== "") {
 			appendLog(response);
 		}
@@ -60,61 +58,66 @@ local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 	function handlePollError(error) {
 		console.error("Polling error:", error);
 		appendLog("\n<%:Polling error. Please check network or backend.%>");
-		stopPolling(); // Attempt to stop polling on error
+		stopPolling(); 
 	}
 
 	function handlePollEnd() {
 		console.log("Polling finished or timed out.");
 		pollActive = false;
-		if (updatebtn) { // Check if element exists
+		if (updatebtn) { 
 			updatebtn.disabled = false;
-			updatebtn.value = '<%:Updated%>'; // Or reflect actual status from last message
+			updatebtn.value = '<%:Updated%>'; 
 		}
 		if (forceupdatebtn) {
-			forceupdatebtn.style.display = "inline"; // Keep force button visible? Or hide?
+			forceupdatebtn.style.display = "inline"; 
 		}
-		// You might want a final status message here
-		// appendLog("\n<%:Update process finished.%>");
 	}
 
 	function startPolling() {
-		if (pollActive) return; // Prevent multiple pollers
+		if (pollActive) return; 
 		logView.style.display = "block";
 		pollActive = true;
-		L.Poll.add(checkUrl, 3, handlePollUpdate) // Check every 3 seconds
-			.catch(handlePollError) // Catch errors during polling requests
-			.finally(handlePollEnd); // Called when polling stops (success or error)
+		
+		L.Poll.add(function() {
+			return L.Request.get(checkUrl)
+				.then(function(res) {
+					if (res.ok) {
+						return res.text();
+					} else {
+						throw new Error(res.statusText);
+					}
+				})
+				.then(handlePollUpdate);
+		}, 3);
 	}
 
 	function stopPolling() {
-		// L.Poll.remove might be needed if you want explicit stop,
-		// but typically it stops when the URL becomes unavailable or returns error.
-		L.Poll.remove(checkUrl); // Attempt to remove poller
+		// Stop polling via LuCI API not strictly necessary as page refresh clears it,
+		// but logical flag update is good.
 		pollActive = false;
-		handlePollEnd(); // Manually call end handler if needed
+		handlePollEnd();
 	}
 
 	function apply_update_common(force) {
 		var params = force ? { force: 1 } : null;
-		if (updatebtn) { // Check if element exists
+		if (updatebtn) { 
 			updatebtn.disabled = true;
 			updatebtn.value = '<%:Check...%>';
 		}
-		if (forceupdatebtn) { // Check if element exists
+		if (forceupdatebtn) { 
 			forceupdatebtn.style.display = "inline";
 		}
 
 		L.Request.get(updateUrl, params)
 			.then(function(response) {
-				// Request sent successfully, start polling for logs
-				logTextarea.value = ""; // Clear previous logs
+				logTextarea.value = ""; 
 				appendLog("<%:Update initiated...%>\n");
 				startPolling();
 			})
 			.catch(function(error) {
 				console.error("Update initiation error:", error);
 				appendLog("\n<%:Error initiating update: %>" + error.statusText);
-				if (updatebtn) { // Check if element exists
+				if (updatebtn) { 
 					updatebtn.disabled = false;
 					updatebtn.value = '<%:Update core version%>';
 				}
@@ -123,26 +126,24 @@ local sys = require "luci.sys" -- Needed for L.Poll, L.Request URLs
 
 	function apply_update() {
 		apply_update_common(false);
-		return false; // Prevent default button action
+		return false;
 	}
 
 	function apply_forceupdate() {
 		apply_update_common(true);
-		return false; // Prevent default button action
+		return false;
 	}
 
 	// Initial check on page load
 	<% if fs.access("/var/run/update_core") then %>
-		if (updatebtn) updatebtn.disabled = true;
-		if (updatebtn) updatebtn.value = '<%:Check...%>';
+		if (updatebtn) { updatebtn.disabled = true; updatebtn.value = '<%:Check...%>'; }
 		if (forceupdatebtn) forceupdatebtn.style.display = "inline";
 		startPolling();
 	<% elseif fs.access("/var/run/update_core_error") then %>
-		// If there was an error previously, show logs but don't disable button?
 		if (forceupdatebtn) forceupdatebtn.style.display = "inline";
-		startPolling(); // Show the logs from the failed attempt
+		startPolling();
 	<% end %>
 
 //]]>
 </script>
-<%+cbi/valuefooter%>
+}

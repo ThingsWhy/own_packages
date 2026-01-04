@@ -1,4 +1,7 @@
-<%+cbi/valueheader%>
+{
+type: uploaded file
+fileName: thingswhy/luci-app-adguardhome/luci-app-adguardhome-31fc2723e209fbdbdc21cc9572c42548fae1474b/luasrc/view/AdGuardHome/yamleditor.htm
+fullContent:
 <%-- Include CodeMirror resources --%>
 <script type="text/javascript" src="<%=resource%>/codemirror/lib/codemirror.js"></script>
 <link rel="stylesheet" href="<%=resource%>/codemirror/lib/codemirror.css" />
@@ -60,9 +63,14 @@
 
 		L.Request.get(templateUrl)
 			.then(function(response) {
-				if (response) {
-					// Assuming the response text is the template content
-					editorInstance.setValue(response);
+				if (response.ok) {
+					return response.text();
+				}
+				throw new Error("Network response was not ok");
+			})
+			.then(function(text) {
+				if (text) {
+					editorInstance.setValue(text);
 				} else {
 					alert("<%:Received empty template content.%>");
 				}
@@ -75,10 +83,12 @@
 	}
 //]]>
 </script>
-<% local fs = require "nixio.fs" %>
-<% local tmp_exists, _ = pcall(fs.access, "/tmp/AdGuardHometmpconfig.yaml") %>
-<% if tmp_exists then %>
-	<input type="button" class="cbi-button cbi-button-reset" value="<%:Discard Changes%>" onclick="return reload_config()" />
-<% end %>
-<input type="button" class="cbi-button cbi-button-apply" value="<%:Use template%>" onclick="return use_template()" />
-<%+cbi/valuefooter%>
+<div class="cbi-section-create cbi-tblsection-create">
+	<% local fs = require "nixio.fs" %>
+	<% local tmp_exists, _ = pcall(fs.access, "/tmp/AdGuardHometmpconfig.yaml") %>
+	<% if tmp_exists then %>
+		<input type="button" class="cbi-button cbi-button-reset" value="<%:Discard Changes%>" onclick="return reload_config()" />
+	<% end %>
+	<input type="button" class="cbi-button cbi-button-apply" value="<%:Use template%>" onclick="return use_template()" />
+</div>
+}

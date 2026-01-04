@@ -1,7 +1,11 @@
-<%+cbi/valueheader%>
+{
+type: uploaded file
+fileName: thingswhy/luci-app-adguardhome/luci-app-adguardhome-31fc2723e209fbdbdc21cc9572c42548fae1474b/luasrc/view/AdGuardHome/AdGuardHome_chpass.htm
+fullContent:
+<%-- Removed included header to prevent SimpleForm conflicts --%>
 <script type="text/javascript" src="<%=resource%>/twin-bcrypt.min.js" defer onerror="handleBcryptLoadError()"></script>
 <script type="text/javascript">//<![CDATA[
-	var bcryptloaded = false; // Track loading state
+	var bcryptloaded = false; 
 	var bcryptLoadError = false;
 
 	function handleBcryptLoadError() {
@@ -14,19 +18,17 @@
 		}
 	}
 
-	// Check if loaded after a short delay, as 'defer' might not guarantee immediate availability
 	window.addEventListener('load', function() {
 		if (typeof TwinBcrypt !== 'undefined') {
 			bcryptloaded = true;
 		} else if (!bcryptLoadError) {
-			// If not loaded and no error triggered, possibly blocked or delayed
 			setTimeout(function() {
 				if (typeof TwinBcrypt === 'undefined' && !bcryptLoadError) {
-					handleBcryptLoadError(); // Mark as error if still not loaded
+					handleBcryptLoadError(); 
 				} else {
 					bcryptloaded = true;
 				}
-			}, 1000); // Wait 1 second
+			}, 1000); 
 		}
 	});
 
@@ -41,14 +43,13 @@
 		if (!bcryptloaded) {
 			btn.disabled = true;
 			btn.value = '<%:loading...%>';
-			// Wait a bit longer for the script to potentially load
 			setTimeout(function() {
 				if (typeof TwinBcrypt !== 'undefined') {
 					bcryptloaded = true;
 					btn.value = '<%:Culculate%>';
 					btn.disabled = false;
 				} else {
-					handleBcryptLoadError(); // If still not loaded, assume error
+					handleBcryptLoadError(); 
 				}
 			}, 500);
 			return false;
@@ -57,29 +58,26 @@
 		var pwField = document.getElementById('cbid.AdGuardHome.AdGuardHome.hashpass');
 		if (pwField && pwField.value !== "") {
 			try {
-				// Disable button during hashing
 				btn.disabled = true;
 				btn.value = '<%:Culculate...%>';
 
-				// Hashing can be slow, maybe use a small timeout to allow UI update
 				setTimeout(function() {
-					var hash = TwinBcrypt.hashSync(pwField.value); // Use the loaded library
+					var hash = TwinBcrypt.hashSync(pwField.value); 
 					pwField.value = hash;
 					btn.value = '<%:Please save/apply%>';
-					// Keep button disabled until save/apply? Or re-enable? Re-enable for now.
-					// btn.disabled = false;
+					btn.disabled = false;
 				}, 10);
 
 			} catch (e) {
 				console.error("Hashing error:", e);
 				btn.value = '<%:Hashing error!%>';
-				btn.disabled = false; // Re-enable on error
+				btn.disabled = false; 
 			}
 		} else {
 			btn.value = '<%:Password is empty%>';
 			btn.disabled = false;
 		}
-		return false; // Prevent default button action
+		return false; 
 	}
 //]]>
 </script>
@@ -101,4 +99,4 @@
 %> />
 <% if self.password then %><img src="<%=resource%>/cbi/reload.gif" style="vertical-align:middle" title="<%:Reveal/hide password%>" onclick="var e = document.getElementById('<%=cbid%>'); e.type = (e.type=='password') ? 'text' : 'password';" /><% end %>
 <input type="button" class="cbi-button cbi-button-apply" id="cbid.AdGuardHome.AdGuardHome.applychpass" value="<%:Culculate Hash%>" onclick="return chpass(this)" />
-<%+cbi/valuefooter%>
+}
