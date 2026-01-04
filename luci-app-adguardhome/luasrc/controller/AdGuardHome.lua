@@ -55,7 +55,8 @@ function reload_config()
 	local ok, err = check_pcall(fs.remove, "/tmp/AdGuardHometmpconfig.yaml")
 	-- Respond even if remove failed
 	http.prepare_content("application/json")
-	http.write('') -- Empty JSON response
+	-- 修复：返回空 JSON 对象而非空字符串，防止前端解析失败
+	http.write('{}')
 end
 
 function act_status()
@@ -78,7 +79,8 @@ function do_update()
 
 	-- Prepare response immediately
 	http.prepare_content("application/json")
-	http.write('')
+	-- 修复：返回空 JSON 对象而非空字符串，防止前端解析失败
+	http.write('{}')
 
 	-- Determine argument
 	local arg = ""
@@ -212,7 +214,8 @@ function do_dellog()
 	end
 	-- Send empty response regardless of success/failure?
 	http.prepare_content("application/json")
-	http.write('')
+	-- 修复：返回空 JSON 对象而非空字符串
+	http.write('{}')
 end
 
 function check_update()
