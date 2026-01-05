@@ -1,63 +1,122 @@
 <%+cbi/valueheader%>
-
-<div style="margin-bottom: 5px;">
-	<label><input type="checkbox" id="cb_autoscroll" checked> <%:Auto Scroll%></label>
-	<label><input type="checkbox" id="cb_reverse"> <%:Reverse Order%></label>
-	<input type="button" class="cbi-button cbi-button-apply" value="<%:Clear Log%>" onclick="clearLog()" />
-	<input type="button" class="cbi-button cbi-button-reset" value="<%:Refresh%>" onclick="fetchLog()" />
-</div>
-
-<textarea id="syslog_area" class="cbi-input-textarea" style="width: 100%; height: 400px; font-family: monospace; font-size: 12px;" readonly></textarea>
-
+<input type="checkbox" name="NAME" value="reverse" onclick="reverselog()" style="vertical-align:middle;height: auto;" checked><%:Reverse%></input>
+<%if self.timereplace then%>
+<input type="checkbox" name="NAME" value="localtime" onclick="chlogtime()" style="vertical-align:middle;height: auto;" checked><%:Use localtime%></input><br/>
+<%end%>
+<textarea id="cbid.logview.1.conf" class="cbi-input-textarea" style="width: 100%;display:inline" data-update="change" rows="32" cols="60" readonly="readonly"></textarea>
+<input type="button" class="cbi-button cbi-button-apply" id="apply_update_button" value="<%:Clear log%>" onclick="apply_del_log()"/>
+<input type="button" class="cbi-button cbi-button-apply" value="<%:Download log%>" style="display:inline;" onclick="download_log()"/>
 <script type="text/javascript">//<![CDATA[
-	var getLogUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "get_log")%>';
-	var truncateUrl = '<%=luci.dispatcher.build_url("admin", "services", "AdGuardHome", "truncate_log")%>';
-	
-	var logPos = 0;
-	var logArea = document.getElementById('syslog_area');
-	var autoScroll = document.getElementById('cb_autoscroll');
-	var reverseOrder = document.getElementById('cb_reverse');
-	
-	function fetchLog() {
-		L.get(getLogUrl, { pos: logPos }).then(function(xhr) {
-			var data = xhr.json();
-			if (data && data.log) {
-				// 如果日志被轮转（pos重置），清空显示
-				if (data.pos < logPos) {
-					logArea.value = "";
-					logPos = 0;
-				}
-				
-				if (data.log.length > 0) {
-					// 简单的反序处理：如果是反序模式，可能需要重新获取全部或只在UI层展示
-					// 这里为了性能，反序仅针对当前获取的块，或者建议大日志不开启反序
-					// 为简单起见，这里保持追加模式
-					logArea.value += data.log;
-					
-					logPos = data.pos;
-					
-					if (autoScroll.checked) {
-						logArea.scrollTop = logArea.scrollHeight;
+var islogreverse = true;
+var isutc2local = <%=tostring(self.timereplace)%>;
+var logPos = 0;
+function createAndDownloadFile(fileName, content) {
+    var aTag = document.createElement('a');
+    var blob = new Blob([content]);
+    aTag.download = fileName;
+    aTag.href = URL.createObjectURL(blob);
+    aTag.click();
+    URL.revokeObjectURL(blob);
+}
+function download_log(){
+	var lv = document.getElementById('cbid.logview.1.conf');
+	var dt = new Date();
+	var timestamp = (dt.getMonth()+1)+"-"+dt.getDate()+"-"+dt.getHours()+"_"+dt.getMinutes();
+	createAndDownloadFile("AdGuardHome"+timestamp+".log",lv.innerHTML)
+	return
+}
+function apply_del_log(){
+	XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[dodellog]])%>',null,function(x, data){
+		var lv = document.getElementById('cbid.logview.1.conf');
+		lv.innerHTML="";
+		logPos = 0;
+	}
+	);
+	return
+}
+function chlogtime(){
+	var lv = document.getElementById('cbid.logview.1.conf');
+	if (isutc2local){
+	lv.innerHTML=line_toUTC(lv.innerHTML).join('\n');
+	isutc2local=false;
+	}else{
+	lv.innerHTML=line_tolocal(lv.innerHTML).join('\n');
+	isutc2local=true;
+	}
+	return
+}
+function reverselog(){
+	var lv = document.getElementById('cbid.logview.1.conf');
+	lv.innerHTML=lv.innerHTML.split('\n').reverse().join('\n')
+	if (islogreverse){
+	islogreverse=false;
+	}else{
+	islogreverse=true;
+	}
+	return
+}
+function p(s) {
+        return s < 10 ? '0' + s: s;
+}
+function line_tolocal(str){
+var strt=new Array();
+str.trim().split('\n').forEach(function(v, i) {
+var dt = new Date(v.substring(0,19)+" UTC");
+if (dt != "Invalid Date"){
+  strt[i]=dt.getFullYear()+"/"+p(dt.getMonth()+1)+"/"+p(dt.getDate())+" "+p(dt.getHours())+":"+p(dt.getMinutes())+":"+p(dt.getSeconds())+v.substring(19);
+}else{
+  strt[i]=v;}})
+return strt
+}
+function line_toUTC(str){
+var strt=new Array();
+str.trim().split('\n').forEach(function(v, i) {
+var dt = new Date(v.substring(0,19))
+if (dt != "Invalid Date"){
+  strt[i]=dt.getUTCFullYear()+"/"+p(dt.getUTCMonth()+1)+"/"+p(dt.getUTCDate())+" "+p(dt.getUTCHours())+":"+p(dt.getUTCMinutes())+":"+p(dt.getUTCSeconds())+v.substring(19);
+}else{
+  strt[i]=v;}})
+return strt
+}
+function poll_check(){
+	(function do_poll(){
+		XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[getlog]])%>' + '?pos=' + encodeURIComponent(logPos), null,
+			function(x, data){
+				var lv = document.getElementById('cbid.logview.1.conf');
+
+				if (!data) return;
+				var response = data.content || "";
+				if (response.length > 0) {
+					if (isutc2local) {
+						var lines = line_tolocal(response);
+						if (islogreverse) {
+							lv.innerHTML = lines.reverse().join('\n') + lv.innerHTML;
+						} else {
+							lv.innerHTML += lines.join('\n');
+						}
+					} else {
+						if (islogreverse) {
+							lv.innerHTML = response.split('\n').reverse().join('\n') + lv.innerHTML;
+						} else {
+							lv.innerHTML += response;
+						}
 					}
 				}
+				if (data.pos !== undefined && data.pos !== null) {
+					logPos = parseInt(data.pos, 10) || logPos;
+				}
+
+				setTimeout(do_poll, 3000);
 			}
-		});
-	}
-
-	function clearLog() {
-		if (confirm('<%:Are you sure to clear the log file?%>')) {
-			L.get(truncateUrl).then(function() {
-				logArea.value = "";
-				logPos = 0;
-			});
-		}
-	}
-
-	// 初始加载
-	fetchLog();
-	
-	// 自动轮询 (每3秒)
-	window.setInterval(fetchLog, 3000);
-//]]></script>
-
+		);
+	})();
+}
+<%if self.pollcheck then%>
+poll_check();
+<%else%>
+var lv = document.getElementById('cbid.logview.1.conf');
+lv.innerHTML="<%:Please add log path in config to enable log%>"
+<%end%>
+//]]>
+</script>	
 <%+cbi/valuefooter%>

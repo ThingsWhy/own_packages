@@ -1,47 +1,56 @@
 local m, s, o
-local fs = require("nixio.fs")
-local agh = require("luci.model.adguardhome")
-local sys = require("luci.sys")
+local fs = require "nixio.fs"
+local uci=require"luci.model.uci".cursor()
+local sys=require"luci.sys"
+require("string")
+require("io")
+require("table")
 
 m = Map("AdGuardHome")
-local configpath = agh.get_yaml_path()
-local binpath = agh.get_bin_path()
-
+local configpath = uci:get("AdGuardHome","AdGuardHome","configpath")
+local binpath = uci:get("AdGuardHome","AdGuardHome","binpath")
 s = m:section(TypedSection, "AdGuardHome")
-s.anonymous = true
-s.addremove = false
-
---- Config Editor
-o = s:option(TextValue, "manual_config")
-o.rows = 30
+s.anonymous=true
+s.addremove=false
+--- config
+o = s:option(TextValue, "escconf")
+o.rows = 66
 o.wrap = "off"
-o.description = translate("Edit AdGuardHome.yaml manually. 'Use Template' will overwrite current content.")
-
+o.rmempty = true
 o.cfgvalue = function(self, section)
-	return fs.readfile(configpath) or ""
+	return fs.readfile("/tmp/AdGuardHometmpconfig.yaml") or fs.readfile(configpath) or fs.readfile("/usr/share/AdGuardHome/AdGuardHome_template.yaml") or ""
 end
-
-o.validate = function(self, value)
-	local tmp_file = "/tmp/AdGuardHome_check.yaml"
-	fs.writefile(tmp_file, value:gsub("\r\n", "\n"))
-
+o.validate=function(self, value)
+	fs.writefile("/tmp/AdGuardHometmpconfig.yaml", value:gsub("\r\n", "\n"))
 	if fs.access(binpath) then
-		local ret = sys.call(string.format("'%s' -c '%s' --check-config >/dev/null 2>&1", binpath, tmp_file))
-		if ret ~= 0 then
-			return nil, translate("Config validation failed! Check syntax.")
+		if (sys.call(binpath.." -c /tmp/AdGuardHometmpconfig.yaml --check-config 2> /tmp/AdGuardHometest.log")==0) then
+			return value
 		end
+	else
+		return value
 	end
-	
-	fs.remove(tmp_file)
-	return value
+	m.message = translate("Configuration validation failed")..fs.readfile("/tmp/AdGuardHometest.log")
+	return nil
 end
-
 o.write = function(self, section, value)
-	fs.writefile(configpath, value:gsub("\r\n", "\n"))
+	fs.move("/tmp/AdGuardHometmpconfig.yaml",configpath)
 end
-
---- Template Button (Implemented in JS in View, logic in Controller)
-o = s:option(DummyValue, "template_btn")
-o.template = "AdGuardHome/yamleditor" -- We'll keep the view, it's mostly JS
+o.remove = function(self, section, value)
+	fs.writefile(configpath, "")
+end
+--- js and reload button
+o = s:option(DummyValue, "")
+o.anonymous=true
+o.template = "AdGuardHome/yamleditor"
+if not fs.access(binpath) then
+	o.description=translate("WARNING!!! No executable found, config will not be tested")
+end
+--- log
+if (fs.access("/tmp/AdGuardHometmpconfig.yaml")) then
+	local c=fs.readfile("/tmp/AdGuardHometest.log")
+	if (c~="") then
+		m.message = translate("Configuration validation failed")..fs.readfile("/tmp/AdGuardHometest.log")
+	end
+end
 
 return m
