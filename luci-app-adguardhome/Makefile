@@ -13,13 +13,11 @@ PKG_RELEASE:=1
 PKG_MAINTAINER:=<https://github.com/rufengsuixing/luci-app-adguardhome>
 
 LUCI_TITLE:=LuCI app for AdGuard Home
-# Dependencies Fix:
-# - Removed '+xz' because update_core.sh handles .tar.gz which doesn't need xz.
-# - Removed '+adguardhome' optional if you want to allow installing without the core package pre-installed.
-#   (However, keeping +adguardhome is recommended if the core package is available in your feeds)
-# - luci-lib-jsonc: Required for backend logic
-# - uclient-fetch: Required for download logic
-LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +upx +adguardhome
+# Dependencies Updated:
+# - luci-lib-jsonc: Required for JSON parsing in Lua backend
+# - uclient-fetch: Lightweight downloader (standard in OpenWrt)
+# - xz: Required for UPX decompression
+LUCI_DEPENDS:=+luci-lib-jsonc +uclient-fetch +xz +adguardhome
 LUCI_PKGARCH:=all
 LUCI_DESCRIPTION:=LuCI support for AdGuard Home
 
