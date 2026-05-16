@@ -155,10 +155,9 @@ function update_adlist() {
 	}
 
 	if (download_failed) {
-		print("\x1b[1;31mRules download failed.\n");
 		exec_sys(`rm -rf "${ad_tmpdir}"`);
 		unlink(lock_file);
-		exit(1);
+		die("Rules download failed.");
 	} else {
 		if (has_update) {
 			mkdir('/etc/mosdns/rule/adlist', 0755);
@@ -183,7 +182,7 @@ function update_geodat() {
 	let v2dat_dir = '/usr/share/v2ray';
 
 	let tmp_res = exec_sys('mktemp -d');
-	if (tmp_res.code !== 0) exit(1);
+	if (tmp_res.code !== 0) die("Failed to create temp directory for geodata.");
 	let tmpdir = tmp_res.stdout;
 
 	exec_sys(`mkdir -p "${v2dat_dir}"`);
@@ -194,7 +193,7 @@ function update_geodat() {
 	print(`Downloading ${geoip_url}.sha256sum\n`);
 	stdout.flush();
 	if (exec_sys(`curl --connect-timeout 5 -m 20 --ipv4 -kfSLo "${tmpdir}/geoip.dat.sha256sum" "${geoip_url}.sha256sum"`).code !== 0) {
-		exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+		exec_sys(`rm -rf "${tmpdir}"`); die("Failed to download geoip.dat.sha256sum");
 	}
 
 	let geoip_sum_remote = split(exec_sys(`cat "${tmpdir}/geoip.dat.sha256sum"`).stdout, /[ \t\n]+/)[0];
@@ -210,13 +209,12 @@ function update_geodat() {
 		print(`Downloading ${geoip_url}\n`);
 		stdout.flush();
 		if (exec_sys(`curl --connect-timeout 5 -m 120 --ipv4 -kfSLo "${tmpdir}/geoip.dat" "${geoip_url}"`).code !== 0) {
-			exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+			exec_sys(`rm -rf "${tmpdir}"`); die("Failed to download geoip.dat");
 		}
 
 		let sum_downloaded = split(exec_sys(`sha256sum "${tmpdir}/geoip.dat"`).stdout, /[ \t\n]+/)[0];
 		if (sum_downloaded !== geoip_sum_remote) {
-			print("\x1b[1;31mgeoip.dat checksum error\n");
-			exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+			exec_sys(`rm -rf "${tmpdir}"`); die("geoip.dat checksum error");
 		}
 		geoip_updated = true;
 	}
@@ -227,7 +225,7 @@ function update_geodat() {
 	print(`Downloading ${geosite_url}.sha256sum\n`);
 	stdout.flush();
 	if (exec_sys(`curl --connect-timeout 5 -m 20 --ipv4 -kfSLo "${tmpdir}/geosite.dat.sha256sum" "${geosite_url}.sha256sum"`).code !== 0) {
-		exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+		exec_sys(`rm -rf "${tmpdir}"`); die("Failed to download geosite.dat.sha256sum");
 	}
 
 	let geosite_sum_remote = split(exec_sys(`cat "${tmpdir}/geosite.dat.sha256sum"`).stdout, /[ \t\n]+/)[0];
@@ -243,13 +241,12 @@ function update_geodat() {
 		print(`Downloading ${geosite_url}\n`);
 		stdout.flush();
 		if (exec_sys(`curl --connect-timeout 5 -m 120 --ipv4 -kfSLo "${tmpdir}/geosite.dat" "${geosite_url}"`).code !== 0) {
-			exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+			exec_sys(`rm -rf "${tmpdir}"`); die("Failed to download geosite.dat");
 		}
 
 		let sum_downloaded = split(exec_sys(`sha256sum "${tmpdir}/geosite.dat"`).stdout, /[ \t\n]+/)[0];
 		if (sum_downloaded !== geosite_sum_remote) {
-			print("\x1b[1;31mgeosite.dat checksum error\n");
-			exec_sys(`rm -rf "${tmpdir}"`); exit(1);
+			exec_sys(`rm -rf "${tmpdir}"`); die("geosite.dat checksum error");
 		}
 		geosite_updated = true;
 	}
@@ -333,8 +330,10 @@ switch (action) {
 			stdout.flush();
 		} catch (e) {
 			print("Update failed: " + e + "\n");
-			print("UPDATE_FINISHED\n");
+			print("UPDATE_EXITED\n");
 			stdout.flush();
+			unlink('/var/lock/mosdns_update.lock');
+			exit(1);
 		}
 		unlink('/var/lock/mosdns_update.lock');
 		break;
