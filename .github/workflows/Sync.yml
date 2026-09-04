@@ -25,16 +25,11 @@ jobs:
         echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
         echo "Using temp directory: $TEMP_DIR"
 
-        # 定义通用克隆函数
-        # 参数1: 仓库URL
-        # 参数2: 目标文件夹名
-        # 参数3: 具体的处理逻辑 (作为字符串传入或并在后台运行)
-        
-        # 为了提高速度，我们将所有克隆任务放入后台并行运行
+        # 为了提高速度，将所有克隆任务放入后台并行运行
         pids=""
 
         # -------------------------------------------------------------------
-        # 任务 1: luci-app-adguardhome (来自当前组织/用户或其他源)
+        # 任务 1: luci-app-adguardhome
         (
           echo "::group::Downloading luci-app-adguardhome"
           git clone --depth=1 --single-branch https://github.com/ThingsWhy/luci-app-adguardhome.git "$TEMP_DIR/luci-app-adguardhome"
@@ -80,12 +75,13 @@ jobs:
         pids="$pids $!"
 
         # -------------------------------------------------------------------
-        # 任务 5: MosDNS & v2dat
+        # 任务 5: MosDNS & geo2txt
+        # sbwml/luci-app-mosdns 已由 v2dat 迁移至 geo2txt
         (
           echo "::group::Downloading MosDNS"
-          git clone --depth=1 --single-branch https://github.com/sbwml/luci-app-mosdns.git "$TEMP_DIR/_luci-app-mosdns"
+          git clone --depth=1 --single-branch --branch v5 https://github.com/sbwml/luci-app-mosdns.git "$TEMP_DIR/_luci-app-mosdns"
           cp -R "$TEMP_DIR/_luci-app-mosdns/luci-app-mosdns" "$TEMP_DIR/"
-          cp -R "$TEMP_DIR/_luci-app-mosdns/v2dat" "$TEMP_DIR/"
+          cp -R "$TEMP_DIR/_luci-app-mosdns/geo2txt" "$TEMP_DIR/"
           rm -rf "$TEMP_DIR/_luci-app-mosdns"
           echo "::endgroup::"
         ) &
@@ -114,7 +110,6 @@ jobs:
 
     - name: Sync package folder to upstream repo
       env:
-        # 使用上一步生成的 TEMP_DIR 环境变量
         PACKAGE_SOURCE: ${{ env.TEMP_DIR }}
       run: |
         # 配置 Git
@@ -123,7 +118,7 @@ jobs:
 
         echo "Syncing from $PACKAGE_SOURCE/ to ${GITHUB_WORKSPACE}/"
         
-        # 使用 rsync 同步，增加了一些通用的排除项以保持整洁
+        # 使用 rsync 同步，并排除仓库自身元数据
         rsync -rcl --delete \
           --exclude=".git*" \
           --exclude="README.md" \
@@ -143,7 +138,7 @@ jobs:
         fi
 
     - name: Delete old workflow runs
-      if: always() 
+      if: always()
       uses: Mattraks/delete-workflow-runs@v2
       with:
         token: ${{ github.token }}
