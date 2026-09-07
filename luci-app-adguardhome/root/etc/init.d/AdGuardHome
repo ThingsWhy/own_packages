@@ -89,24 +89,30 @@ clear_firewall()
 
 service_triggers() {
 	procd_add_reload_trigger "$CONFIGURATION"
-	[ "$(uci get AdGuardHome.AdGuardHome.redirect)" == "redirect" ] && procd_add_reload_trigger firewall
+	[ "$(uci -q get AdGuardHome.AdGuardHome.redirect)" = "redirect" ] && procd_add_reload_trigger firewall
 }
 isrunning(){
 	config_load "${CONFIGURATION}"
 	_isrunning
 	local r=$?
-	([ "$r" == "0" ] && echo "running") || ([ "$r" == "1" ] && echo "not run" ) || echo "no bin"
-	return $r
+	case "$r" in
+		0) echo "running" ;;
+		1) echo "not run" ;;
+		*) echo "no bin" ;;
+	esac
+	return "$r"
 }
 _isrunning(){
 	config_get binpath $CONFIGURATION binpath "/usr/bin/AdGuardHome/AdGuardHome"
-	[ ! -f "$binpath" ] && return 2
-	pgrep $binpath 2>&1 >/dev/null && return 0
+	[ -x "$binpath" ] || return 2
+	procd_running "$CONFIGURATION" "main" && return 0
 	return 1
 }
 force_reload(){
 	config_load "${CONFIGURATION}"
-	_isrunning && procd_send_signal "$CONFIGURATION" || start
+	_do_redirect 0
+	procd_kill "$CONFIGURATION" "main" >/dev/null 2>&1 || true
+	start
 }
 
 rm_port53()
@@ -280,8 +286,11 @@ boot_service() {
 	config_load "${CONFIGURATION}"
 	config_get waitonboot $CONFIGURATION waitonboot "0"
 	config_get_bool enabled $CONFIGURATION enabled 0
-	config_get binpath $CONFIGURATION binpath "/usr/bin/AdGuardHome/AdGuardHome"
-	[ -f "$binpath" ] && start_service
+
+	# Always enter start_service.  It owns the enabled/core-missing policy and
+	# can launch the updater without aborting rc_procd's instance setup.
+	start_service
+
 	if [ "$enabled" == "1" ] && [ "$waitonboot" == "1" ]; then
 		procd_open_instance "waitnet"
 		procd_set_param command "/usr/share/AdGuardHome/waitnet.sh"
@@ -363,6 +372,8 @@ _add_upprotect_file()
 start_service() {
 	# Reading config
 	config_load "${CONFIGURATION}"
+	rm -f /var/run/AdG_stopping
+
 	# update password
 	config_get username $CONFIGURATION username ""
 	config_get hashpass $CONFIGURATION hashpass ""
@@ -386,18 +397,18 @@ start_service() {
 	fi
 	#what need to do before reload
 	config_get workdir $CONFIGURATION workdir "/usr/bin/AdGuardHome"
-	grep -q "ipset.txt" $configpath 2>/dev/null && ipst=1
+	grep -q "ipset.txt" "$configpath" 2>/dev/null && ipst=1
 	if [ $ipst -eq 1 ];then
 		ipset list $GFWSET >/dev/null 2>&1 || ipset create $GFWSET hash:ip 2>/dev/null
 	fi
 	config_get backupfile $CONFIGURATION backupfile ""
-	mkdir -p $workdir/data
 	if [ -n "$backupfile" ] && [ ! -d "$workdir/data" ]; then
 		restore
 	fi
+	mkdir -p "$workdir/data"
 
 	# for overlay data-stk-oo not suppport
-	local cwdfs=$(get_filesystem $workdir)
+	local cwdfs=$(get_filesystem "$workdir")
 	echo "Workdir $workdir is a $cwdfs filesystem"
 	if [ "$cwdfs" == "jffs2" ]; then
 		echo "Linking db files to /tmp to avoid FS error"
@@ -413,6 +424,9 @@ start_service() {
 		ln -s /tmp/sessions.db $workdir/data/sessions.db 2>/dev/null
 		fi
 	fi
+
+	config_get binpath $CONFIGURATION binpath "/usr/bin/AdGuardHome/AdGuardHome"
+	config_get logfile $CONFIGURATION logfile ""
 
 	# hack to save config file when upgrade system
 	config_get upprotect $CONFIGURATION upprotect ""
@@ -430,52 +444,57 @@ start_service() {
 		fi
 	fi
 
-	config_get binpath $CONFIGURATION binpath "/usr/bin/AdGuardHome/AdGuardHome"
-	mkdir -p ${binpath%/*}
-	if [ ! -f "$binpath" ]; then
+	mkdir -p "${binpath%/*}"
+	if [ ! -x "$binpath" ]; then
 		_do_redirect 0
-		/usr/share/AdGuardHome/update_core.sh 2>&1 >/tmp/AdGuardHome_update.log &
-		exit 0
+		if ! pgrep -f "/usr/share/AdGuardHome/update_core.sh" >/dev/null 2>&1; then
+			/usr/share/AdGuardHome/update_core.sh >/tmp/AdGuardHome_update.log 2>&1 &
+		fi
+		return 0
 	fi
 
 	config_get httpport $CONFIGURATION httpport 3000
-	local ADDITIONAL_ARGS=" -c $configpath -w $workdir -p $httpport --no-check-update"
-
-	config_get logfile $CONFIGURATION logfile ""
-	if [ -n "$logfile" ]; then
-		ADDITIONAL_ARGS="$ADDITIONAL_ARGS -l $logfile"
-	fi
-
 	config_get_bool verbose $CONFIGURATION verbose 0
+
+	# procd command is an argument array.  Keep user-configurable paths as
+	# distinct arguments so spaces or shell metacharacters are not re-parsed.
+	set -- "$binpath" -c "$configpath" -w "$workdir" -p "$httpport" --no-check-update
+	if [ -n "$logfile" ]; then
+		set -- "$@" -l "$logfile"
+	fi
 	if [ "$verbose" -eq 1 ]; then
-		ADDITIONAL_ARGS="$ADDITIONAL_ARGS -v"
+		set -- "$@" -v
 	fi
 
-	procd_open_instance
-	SET_TZ="`uci get system.@system[0].timezone 2>/dev/null`"
+	procd_open_instance "main"
+	SET_TZ="$(uci get system.@system[0].timezone 2>/dev/null)"
 	if [ -n "$SET_TZ" ]; then
 		procd_set_param env TZ="$SET_TZ"
 	fi
 	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
 	procd_set_param limits core="unlimited" nofile="65535 65535"
 	procd_set_param stderr 1
-	procd_set_param command $binpath $ADDITIONAL_ARGS
+	procd_set_param command "$@"
 	procd_set_param file "$configpath" "/etc/hosts" "/etc/config/AdGuardHome"
 	procd_close_instance
-	if [ -f "$configpath" ]; then
-		_do_redirect 1
-	else
-		_do_redirect 0
-		config_get "redirect" $CONFIGURATION "redirect" "none"
-		if [ "$redirect" != "none" ]; then
-			procd_open_instance "waitconfig"
-			procd_set_param command "/usr/share/AdGuardHome/watchconfig.sh"
-			procd_close_instance
-			echo "No config start watching"
+
+	# DNS takeover is fail-closed: clear any old redirect now.  The monitor
+	# enables it only after both a non-empty config and the procd main instance
+	# are present, and disables it again after a sustained process failure.
+	_do_redirect 0
+	config_get "redirect" $CONFIGURATION "redirect" "none"
+	if [ "$redirect" != "none" ]; then
+		procd_open_instance "redirect-monitor"
+		procd_set_param command "/usr/share/AdGuardHome/watchconfig.sh"
+		procd_close_instance
+		if [ -s "$configpath" ]; then
+			echo "DNS redirect will be enabled after main instance health check"
+		else
+			echo "No config; waiting for native AdGuard Home initialization"
 		fi
 	fi
+
 	echo "AdGuardHome service enabled"
-	(sleep 10 && [ -z "$(pgrep $binpath)" ] && logger "AdGuardHome" "no process in 10s cancel redirect" && _do_redirect 0 )&
 }
 reload_service()
 {
@@ -503,6 +522,7 @@ del_querylog(){
 stop_service()
 {
 	config_load "${CONFIGURATION}"
+	touch /var/run/AdG_stopping
 	_do_redirect 0
 	update_crontab
 	if [ "$1" != "nobackup" ]; then

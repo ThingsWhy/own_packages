@@ -57,12 +57,11 @@ else
 	end
 end
 if not fs.access(configpath) then
-	e = e.." ".."<font color=red>"..translate("No config").."</font>"
+	e = e.." ".."<font color=orange>"..translate("Not initialized").."</font>"
 end
 o = s:taboption("basic", Button,"restart",translate("Update"))
 o.inputtitle=translate("Update core version")
 o.template = "AdGuardHome/update"
-o.showfastconfig = (not fs.access(configpath))
 o.description = string.format(translate("Core version:").." <strong><font color=green>%s</font></strong><br/>"..translate("If you've modified any related core settings, please save/apply the changes before clicking Update"), e)
 
 -- Redirect

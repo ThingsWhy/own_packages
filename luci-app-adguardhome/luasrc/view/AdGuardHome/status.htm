@@ -4,7 +4,14 @@ XHR.poll(3, '<%=url([[admin]], [[services]], [[AdGuardHome]], [[status]])%>', nu
 		const tb = document.getElementById('AdGuardHome_status');
 		if (data && tb) {
 			let status = '';
-			if (data.running) {
+			if (!data.core) {
+				status += '<font color=red>AdGuard Home <%:No core%></font>';
+			} else if (!data.initialized) {
+				status += '<font color=orange>AdGuard Home <%:Not initialized%></font>';
+				if (data.running) {
+					status += ' <font color=green>(<%:RUNNING%>)</font>';
+				}
+			} else if (data.running) {
 				status += '<font color=green>AdGuard Home <%:RUNNING%></font>';
 			} else {
 				status += '<font color=red>AdGuard Home <%:NOT RUNNING%></font>';
@@ -12,9 +19,9 @@ XHR.poll(3, '<%=url([[admin]], [[services]], [[AdGuardHome]], [[status]])%>', nu
 			status += ' ';
 			if (data.redirect)
 			{
-				status += '<font color=green>(<%:Redirected%>)</font>'
+				status += '<font color=green>(<%:Redirected%>)</font>';
 			} else {
-				status += '<font color=red>(<%:Not redirected%>)</font>'
+				status += '<font color=red>(<%:Not redirected%>)</font>';
 			}
 			tb.innerHTML = `<em><b>${status}</b></em>`;
 		}

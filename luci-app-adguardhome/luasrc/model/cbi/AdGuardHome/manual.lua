@@ -7,8 +7,8 @@ require("io")
 require("table")
 
 m = Map("AdGuardHome")
-local configpath = uci:get("AdGuardHome","AdGuardHome","configpath")
-local binpath = uci:get("AdGuardHome","AdGuardHome","binpath")
+local configpath = uci:get("AdGuardHome","AdGuardHome","configpath") or "/etc/AdGuardHome.yaml"
+local binpath = uci:get("AdGuardHome","AdGuardHome","binpath") or "/usr/bin/AdGuardHome/AdGuardHome"
 s = m:section(TypedSection, "AdGuardHome")
 s.anonymous=true
 s.addremove=false
@@ -18,7 +18,7 @@ o.rows = 66
 o.wrap = "off"
 o.rmempty = true
 o.cfgvalue = function(self, section)
-	return fs.readfile("/tmp/AdGuardHometmpconfig.yaml") or fs.readfile(configpath) or fs.readfile("/usr/share/AdGuardHome/AdGuardHome_template.yaml") or ""
+	return fs.readfile("/tmp/AdGuardHometmpconfig.yaml") or fs.readfile(configpath) or ""
 end
 o.validate=function(self, value)
 	fs.writefile("/tmp/AdGuardHometmpconfig.yaml", value:gsub("\r\n", "\n"))
@@ -36,7 +36,8 @@ o.write = function(self, section, value)
 	fs.move("/tmp/AdGuardHometmpconfig.yaml",configpath)
 end
 o.remove = function(self, section, value)
-	fs.writefile(configpath, "")
+	fs.remove("/tmp/AdGuardHometmpconfig.yaml")
+	fs.remove(configpath)
 end
 --- js and reload button
 o = s:option(DummyValue, "")

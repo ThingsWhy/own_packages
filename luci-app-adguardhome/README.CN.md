@@ -18,9 +18,8 @@ AdGuard Home 的强大 LuCI 界面 - 基于 DNS 的广告和跟踪阻止程序�
   - 自定义运行日志路径
 - GFWList 查询特定 DNS 服务器。另可参考 [luci-app-autoipsetadder](https://github.com/rufengsuixing/luci-app-autoipsetadder)
 - 正序/倒序查看/删除/备份每 3 秒更新的运行日志 + 本地浏览器时区转换
-- 支持手动修改 AdGuard Home 配置：
-  - 支持 YAML 编辑器
-  - 提供快速配置模板
+- 支持通过 YAML 编辑器手动修改 AdGuard Home 配置
+- 首次运行明确使用 AdGuard Home 原生初始化向导；本软件包不会自动注入预设业务配置
 - 系统升级时自动保留选定的文件
 - 开机启动后等待网络连接自动重启 AdGuard Home（3 分钟超时，主要防止过滤器更新失败）
 - 关机时备份选定的工作目录中的文件（注意：IPK 更新时也会触发备份）
@@ -44,6 +43,9 @@ AdGuard Home 的强大 LuCI 界面 - 基于 DNS 的广告和跟踪阻止程序�
 
 - 下载发布版，用 `opkg` 安装
 - 或在编译 OpenWrt 时，将代码克隆到软件包路径并设为 `y` 或 `m`
+- 在 LuCI 插件中下载 AdGuard Home 核心并启用服务
+- 当 AdGuard Home 配置文件尚不存在时，通过基础设置中的 **AdGuardHome Web** 入口打开配置的管理端口，完成 AdGuard Home 原生初始化向导
+- 初始化完成、配置文件实际生成之前不会启用 DNS 重定向；初始化完成后，用户选择的 DNS 重定向模式才会正常生效
 
 ## 关于压缩
 

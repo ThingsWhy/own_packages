@@ -1,6 +1,9 @@
-
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-adguardhome\n"
+"Language: zh_Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
 msgid "<a href=\"https://github.com/stevenjoezhang/luci-app-adguardhome\" target=\"_blank\">⭐ Star on GitHub</a>"
 msgstr "<a href=\"https://github.com/stevenjoezhang/luci-app-adguardhome\" target=\"_blank\">⭐ 在 GitHub 上关注</a>"
@@ -71,15 +74,15 @@ msgstr "已更新"
 msgid "Force update"
 msgstr "强制更新"
 
-msgid "Fast config"
-msgstr "快速配置"
-
 msgid "Core version:"
 msgstr "核心版本："
 
 #description change
 msgid "No config"
 msgstr "没有配置文件"
+
+msgid "Not initialized"
+msgstr "未初始化"
 
 msgid "No core"
 msgstr "没有核心"
@@ -275,10 +278,6 @@ msgstr "清空日志"
 
 msgid "Download log"
 msgstr "下载日志"
-
-#/cgi-bin/luci/admin/services/AdGuardHome/manual/
-msgid "Use template"
-msgstr "使用模板"
 
 #hide button
 msgid "Reload config"

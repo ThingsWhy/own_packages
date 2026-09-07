@@ -13,19 +13,7 @@ entry({"admin", "services", "AdGuardHome", "doupdate"}, call("do_update"))
 entry({"admin", "services", "AdGuardHome", "getlog"}, call("get_log"))
 entry({"admin", "services", "AdGuardHome", "dodellog"}, call("do_dellog"))
 entry({"admin", "services", "AdGuardHome", "reloadconfig"}, call("reload_config"))
-entry({"admin", "services", "AdGuardHome", "gettemplateconfig"}, call("get_template_config"))
 end 
-function get_template_config()
-	local template_file = "/usr/share/AdGuardHome/AdGuardHome_template.yaml"
-	http.prepare_content("text/plain; charset=utf-8")
-
-	if fs.access(template_file) then
-		local content = fs.readfile(template_file)
-		http.write(content or "")
-	else
-		http.write("")
-	end
-end
 function reload_config()
 	fs.remove("/tmp/AdGuardHometmpconfig.yaml")
 	http.prepare_content("application/json")
@@ -33,8 +21,12 @@ function reload_config()
 end
 function act_status()
 	local e={}
-	local binpath=uci:get("AdGuardHome","AdGuardHome","binpath")
-	e.running=luci.sys.call("pgrep "..binpath.." >/dev/null")==0
+	local binpath=uci:get("AdGuardHome","AdGuardHome","binpath") or "/usr/bin/AdGuardHome/AdGuardHome"
+	local configpath=uci:get("AdGuardHome","AdGuardHome","configpath") or "/etc/AdGuardHome.yaml"
+	local config_size=fs.stat(configpath,"size") or 0
+	e.core=fs.access(binpath) and true or false
+	e.initialized=config_size > 0
+	e.running=e.core and luci.sys.call("/etc/init.d/AdGuardHome running main >/dev/null 2>&1")==0 or false
 	e.redirect=(fs.readfile("/var/run/AdG_redir")=="1")
 	http.prepare_content("application/json")
 	http.write_json(e)
