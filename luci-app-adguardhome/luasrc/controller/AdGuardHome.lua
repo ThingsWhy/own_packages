@@ -2,6 +2,17 @@ module("luci.controller.AdGuardHome",package.seeall)
 local fs=require"nixio.fs"
 local http=require"luci.http"
 local uci=require"luci.model.uci".cursor()
+
+local function updater_running()
+	local raw=fs.readfile("/var/run/AdGuardHome-update.lock/pid") or ""
+	local pid=tonumber(raw:match("(%d+)"))
+	if not pid then
+		return false
+	end
+	local cmdline=fs.readfile("/proc/"..pid.."/cmdline") or ""
+	return cmdline:find("update_core.sh",1,true) ~= nil
+end
+
 function index()
 entry({"admin", "services", "AdGuardHome"},alias("admin", "services", "AdGuardHome", "base"),_("AdGuard Home"), 10).dependent = true
 entry({"admin","services","AdGuardHome","base"},cbi("AdGuardHome/base"),_("Plugin Settings"),1).leaf = true
@@ -38,12 +49,14 @@ function do_update()
 	else
 		arg=""
 	end
-	if luci.sys.call("pgrep -f /usr/share/AdGuardHome/update_core.sh >/dev/null") == 0 then
+	-- The updater owns concurrency through an atomic lock. Never kill an
+	-- in-flight transaction from the LuCI request path.
+	if not updater_running() then
+		local cmd="/usr/share/AdGuardHome/update_core.sh"
 		if arg=="force" then
-			luci.sys.exec("kill $(pgrep -f /usr/share/AdGuardHome/update_core.sh) ; sh /usr/share/AdGuardHome/update_core.sh "..arg.." >/tmp/AdGuardHome_update.log 2>&1 &")
+			cmd=cmd.." force"
 		end
-	else
-		luci.sys.exec("sh /usr/share/AdGuardHome/update_core.sh "..arg.." >/tmp/AdGuardHome_update.log 2>&1 &")
+		luci.sys.exec(cmd.." >/tmp/AdGuardHome_update.log 2>&1 &")
 	end
 	http.prepare_content("application/json")
 	http.write("{}")
@@ -99,7 +112,7 @@ function check_update()
 		end
 	end
 
-	local running = luci.sys.call("pgrep -f /usr/share/AdGuardHome/update_core.sh >/dev/null") == 0
+	local running = updater_running()
 	local status
 	if running then
 		status = "running"

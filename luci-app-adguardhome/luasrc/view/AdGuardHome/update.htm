@@ -1,8 +1,14 @@
 <%+cbi/valueheader%>
 <%local fs=require"nixio.fs"%>
-<%local sys=require"luci.sys"%>
+<%local function updater_running()
+	local raw=fs.readfile("/var/run/AdGuardHome-update.lock/pid") or ""
+	local pid=tonumber(raw:match("(%d+)"))
+	if not pid then return false end
+	local cmdline=fs.readfile("/proc/"..pid.."/cmdline") or ""
+	return cmdline:find("update_core.sh",1,true) ~= nil
+end%>
 <input type="button" class="cbi-button cbi-button-apply" id="apply_update_button" value="<%:Update core version%>" onclick="apply_update()"/>
-<input type="button" class="cbi-button cbi-button-reset" id="apply_forceupdate_button" value="<%:Force update%>" onclick="apply_forceupdate()" style="display:none"/>
+<input type="button" class="cbi-button cbi-button-reset" id="apply_forceupdate_button" value="<%:Force update%>" onclick="apply_forceupdate()"/>
 <div id="logview" style="display:none">
 <input type="checkbox" id="reversetag" value="reverse" onclick="reverselog()" style="vertical-align:middle;height: auto;"><%:Reverse%></input>
 <textarea id="cbid.logview.1.conf" class="cbi-input-textarea" style="width: 100%;display:block;" data-update="change" rows="5" cols="60" readonly="readonly"></textarea>
@@ -14,27 +20,25 @@ var lv = document.getElementById('cbid.logview.1.conf');
 var islogreverse = false;
 var isPolling = false;
 var logPos = 0;
-function apply_forceupdate(){
+function begin_update(force){
 	updatebtn.disabled = true;
+	forceupdatebtn.disabled = true;
+	updatebtn.value = '<%:Updating...%>';
 	logPos = 0;
 	lv.innerHTML = "";
-	XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[doupdate]])%>',{ force: 1 },function(x, data){
+	XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[doupdate]])%>', force ? { force: 1 } : null, function(x, data){
 		poll_check();
 	});
+}
+function apply_forceupdate(){
+	begin_update(true);
 }
 function reverselog(){
 	lv.innerHTML=lv.innerHTML.split('\n').reverse().join('\n');
 	islogreverse = !islogreverse;
 }
 function apply_update(){
-	updatebtn.disabled = true;
-	updatebtn.value    = '<%:Updating...%>';
-	forceupdatebtn.style.display="inline";
-	logPos = 0;
-	lv.innerHTML = "";
-	XHR.get('<%=url([[admin]], [[services]], [[AdGuardHome]], [[doupdate]])%>',null,function(x, data){
-		poll_check();
-	});
+	begin_update(false);
 }
 function poll_check(){
 	if (isPolling) return;
@@ -63,12 +67,13 @@ function poll_check(){
 
 				if (data.status && data.status !== 'running') {
 					isPolling = false;
+					forceupdatebtn.disabled = false;
 					if (data.status === 'succeeded') {
 						updatebtn.disabled = true;
-						updatebtn.value    = '<%:Updated%>';
+						updatebtn.value = '<%:Updated%>';
 					} else if (data.status === 'failed') {
 						updatebtn.disabled = false;
-						updatebtn.value    = '<%:Update core version%>';
+						updatebtn.value = '<%:Update core version%>';
 					}
 					return;
 				}
@@ -80,10 +85,10 @@ function poll_check(){
 		);
 	})();
 }
-<% if sys.call("pgrep -f /usr/share/AdGuardHome/update_core.sh >/dev/null") == 0 then %>
+<% if updater_running() then %>
 	updatebtn.disabled = true;
-	updatebtn.value    = '<%:Updating...%>';
-	forceupdatebtn.style.display="inline"
+	forceupdatebtn.disabled = true;
+	updatebtn.value = '<%:Updating...%>';
 	poll_check();
 <%elseif fs.access("/var/run/AdG_update_error") then %>
 	poll_check();
